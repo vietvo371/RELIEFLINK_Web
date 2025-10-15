@@ -1,7 +1,40 @@
 "use client";
 
-import AdminSidebar from "@/components/relief/AdminSidebar";
-import Navbar from "@/components/relief/Navbar";
+import AdminSidebar from "@/layout/admin/AdminSidebar";
+import AdminHeader from "@/layout/admin/AdminHeader";
+import { AdminSidebarProvider, useAdminSidebar } from "@/context/AdminSidebarContext";
+import { ThemeProvider } from "@/context/ThemeContext";
+import AdminBackdrop from "@/layout/admin/AdminBackdrop";
+
+function AdminLayoutContent({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { isExpanded, isHovered, isMobileOpen } = useAdminSidebar();
+
+  // Dynamic class for main content margin based on sidebar state
+  const mainContentMargin = isMobileOpen
+    ? "ml-0"
+    : isExpanded || isHovered
+    ? "lg:ml-[290px]"
+    : "lg:ml-[90px]";
+
+  return (
+    <div className="min-h-screen xl:flex">
+      <AdminSidebar />
+      <AdminBackdrop />
+      <div
+        className={`flex-1 transition-all duration-300 ease-in-out ${mainContentMargin}`}
+      >
+        {/* Header */}
+        <AdminHeader />
+        {/* Page Content */}
+        <div className="p-4 mx-auto max-w-(--breakpoint-2xl) md:p-6">{children}</div>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminLayout({
   children,
@@ -9,13 +42,12 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-      <AdminSidebar />
-      <div className="flex-1 flex flex-col lg:ml-64">
-        <Navbar />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
-      </div>
-    </div>
+    <ThemeProvider>
+      <AdminSidebarProvider>
+        <AdminLayoutContent>{children}</AdminLayoutContent>
+      </AdminSidebarProvider>
+    </ThemeProvider>
   );
 }
+
 
