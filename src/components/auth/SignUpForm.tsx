@@ -5,10 +5,85 @@ import Label from "@/components/form/Label";
 import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "@/icons";
 import Link from "next/link";
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/store/authStore";
+import { useToast } from "@/context/ToastContext";
+
+interface RegisterFormData {
+  email: string;
+  mat_khau: string;
+  ho_va_ten: string;
+  so_dien_thoai: string;
+  vai_tro: string;
+}
 
 export default function SignUpForm() {
+  const router = useRouter();
+  const { login } = useAuthStore();
+  const { success, error: showError } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
+  const [formData, setFormData] = useState<RegisterFormData>({
+    email: "",
+    mat_khau: "",
+    ho_va_ten: "",
+    so_dien_thoai: "",
+    vai_tro: "nguoi_dan",
+  });
+  const [loading, setLoading] = useState(false);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    if (!isChecked) {
+      showError("Vui lòng chấp nhận Điều khoản và Điều kiện");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "register",
+          ...formData,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Đăng ký thất bại");
+      }
+
+      login(data.user, data.token);
+      success("🎉 Đăng ký thành công!");
+      
+      // Redirect based on role
+      const role = data.user.vai_tro;
+      if (role === "admin") {
+        router.push("/admin/dashboard");
+      } else if (role === "tinh_nguyen_vien") {
+        router.push("/volunteer/dashboard");
+      } else {
+        router.push("/citizen/dashboard");
+      }
+    } catch (err: any) {
+      showError(err.message || "Có lỗi xảy ra, vui lòng thử lại!");
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <div className="flex flex-col flex-1 lg:w-1/2 w-full overflow-y-auto no-scrollbar">
       <div className="w-full max-w-md sm:pt-10 mx-auto mb-5">
@@ -17,7 +92,7 @@ export default function SignUpForm() {
           className="inline-flex items-center text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
         >
           <ChevronLeftIcon />
-          Back to dashboard
+          Back to home
         </Link>
       </div>
       <div className="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
@@ -83,55 +158,78 @@ export default function SignUpForm() {
                 </span>
               </div>
             </div>
-            <form>
+            <form onSubmit={handleSubmit}>
               <div className="space-y-5">
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  {/* <!-- First Name --> */}
-                  <div className="sm:col-span-1">
-                    <Label>
-                      First Name<span className="text-error-500">*</span>
-                    </Label>
-                    <Input
-                      type="text"
-                      id="fname"
-                      name="fname"
-                      placeholder="Enter your first name"
-                    />
-                  </div>
-                  {/* <!-- Last Name --> */}
-                  <div className="sm:col-span-1">
-                    <Label>
-                      Last Name<span className="text-error-500">*</span>
-                    </Label>
-                    <Input
-                      type="text"
-                      id="lname"
-                      name="lname"
-                      placeholder="Enter your last name"
-                    />
-                  </div>
-                </div>
-                {/* <!-- Email --> */}
                 <div>
                   <Label>
-                    Email<span className="text-error-500">*</span>
+                    Full Name<span className="text-error-500">*</span>
+                  </Label>
+                  <Input
+                    type="text"
+                    name="ho_va_ten"
+                    value={formData.ho_va_ten}
+                    onChange={handleInputChange}
+                    placeholder="Enter your full name"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label>
+                    Phone Number<span className="text-error-500">*</span>
+                  </Label>
+                  <Input
+                    type="tel"
+                    name="so_dien_thoai"
+                    value={formData.so_dien_thoai}
+                    onChange={handleInputChange}
+                    placeholder="Enter your phone number"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label>
+                    Role<span className="text-error-500">*</span>
+                  </Label>
+                  <select
+                    name="vai_tro"
+                    value={formData.vai_tro}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  >
+                    <option value="nguoi_dan">Citizen</option>
+                    <option value="tinh_nguyen_vien">Volunteer</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label>
+                    Email<span className="text-error-500">*</span>{" "}
                   </Label>
                   <Input
                     type="email"
-                    id="email"
                     name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
                     placeholder="Enter your email"
+                    required
                   />
                 </div>
-                {/* <!-- Password --> */}
+
                 <div>
                   <Label>
-                    Password<span className="text-error-500">*</span>
+                    Password<span className="text-error-500">*</span>{" "}
                   </Label>
                   <div className="relative">
                     <Input
+                      name="mat_khau"
+                      value={formData.mat_khau}
+                      onChange={handleInputChange}
                       placeholder="Enter your password"
                       type={showPassword ? "text" : "password"}
+                      required
                     />
                     <span
                       onClick={() => setShowPassword(!showPassword)}
@@ -153,11 +251,11 @@ export default function SignUpForm() {
                     onChange={setIsChecked}
                   />
                   <p className="inline-block font-normal text-gray-500 dark:text-gray-400">
-                    By creating an account means you agree to the{" "}
+                    By creating an account, you agree to our{" "}
                     <span className="text-gray-800 dark:text-white/90">
-                      Terms and Conditions,
+                      Terms of Service
                     </span>{" "}
-                    and our{" "}
+                    và{" "}
                     <span className="text-gray-800 dark:text-white">
                       Privacy Policy
                     </span>
@@ -165,8 +263,12 @@ export default function SignUpForm() {
                 </div>
                 {/* <!-- Button --> */}
                 <div>
-                  <button className="flex items-center justify-center w-full px-4 py-3 text-sm font-medium text-white transition rounded-lg bg-brand-500 shadow-theme-xs hover:bg-brand-600">
-                    Sign Up
+                  <button 
+                    type="submit"
+                    disabled={loading}
+                    className="flex items-center justify-center w-full px-4 py-3 text-sm font-medium text-white transition rounded-lg bg-brand-500 shadow-theme-xs hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? "Đang xử lý..." : "Đăng ký"}
                   </button>
                 </div>
               </div>
@@ -176,7 +278,7 @@ export default function SignUpForm() {
               <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400 sm:text-start">
                 Already have an account?
                 <Link
-                  href="/signin"
+                  href="/login"
                   className="text-brand-500 hover:text-brand-600 dark:text-brand-400"
                 >
                   Sign In

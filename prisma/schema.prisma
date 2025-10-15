@@ -41,7 +41,6 @@ model yeu_cau_cuu_tros {
   created_at     DateTime     @default(now())
   updated_at     DateTime     @updatedAt
 }
-
 model trung_tam_cuu_tros {
   id             Int          @id @default(autoincrement())
   ten_trung_tam  String
@@ -102,4 +101,5 @@ model du_bao_ais {
   ngay_du_bao               DateTime
   created_at                DateTime @default(now())
 }
+
 

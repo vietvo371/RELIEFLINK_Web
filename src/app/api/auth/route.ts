@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hashPassword, comparePassword } from "@/lib/auth";
-import { signToken } from "@/lib/jwt";
+import bcrypt from "bcryptjs";
+import { sign } from "jsonwebtoken";
 
-// POST /api/auth - Login or Register
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json();
-    const { action, email, mat_khau, ho_va_ten, vai_tro, so_dien_thoai } =
-      body;
+    const body = await req.json();
+    const { action, email, mat_khau, ho_va_ten, so_dien_thoai, vai_tro } = body;
 
     if (action === "login") {
       // Login logic
@@ -18,50 +16,47 @@ export async function POST(request: NextRequest) {
 
       if (!user) {
         return NextResponse.json(
-          { error: "Email không tồn tại" },
-          { status: 404 },
+          { error: "Email hoặc mật khẩu không đúng" },
+          { status: 401 }
         );
       }
 
-      const isValidPassword = await comparePassword(mat_khau, user.mat_khau);
+      // Verify password
+      const isValidPassword = await bcrypt.compare(mat_khau, user.mat_khau);
       if (!isValidPassword) {
         return NextResponse.json(
-          { error: "Mật khẩu không đúng" },
-          { status: 401 },
+          { error: "Email hoặc mật khẩu không đúng" },
+          { status: 401 }
         );
       }
 
-      const token = await signToken({
-        userId: user.id,
-        email: user.email,
-        vai_tro: user.vai_tro,
-      });
-
-      const response = NextResponse.json(
+      // Generate JWT token
+      const token = sign(
         {
-          user: {
-            id: user.id,
-            ho_va_ten: user.ho_va_ten,
-            email: user.email,
-            vai_tro: user.vai_tro,
-            so_dien_thoai: user.so_dien_thoai,
-            hinh_anh: user.hinh_anh,
-          },
-          token,
+          userId: user.id,
+          email: user.email,
+          role: user.vai_tro,
         },
-        { status: 200 },
+        process.env.JWT_SECRET || "your-secret-key",
+        {
+          expiresIn: "1d",
+        }
       );
 
-      response.cookies.set("token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 7, // 7 days
+      return NextResponse.json({
+        message: "Đăng nhập thành công",
+        user: {
+          id: user.id,
+          email: user.email,
+          ho_va_ten: user.ho_va_ten,
+          so_dien_thoai: user.so_dien_thoai,
+          vai_tro: user.vai_tro,
+        },
+        token,
       });
 
-      return response;
     } else if (action === "register") {
-      // Register logic
+      // Check if user exists
       const existingUser = await prisma.nguoi_dungs.findUnique({
         where: { email },
       });
@@ -69,120 +64,60 @@ export async function POST(request: NextRequest) {
       if (existingUser) {
         return NextResponse.json(
           { error: "Email đã được sử dụng" },
-          { status: 400 },
+          { status: 409 }
         );
       }
 
-      const hashedPassword = await hashPassword(mat_khau);
+      // Hash password
+      const hashedPassword = await bcrypt.hash(mat_khau, 10);
 
-      const newUser = await prisma.nguoi_dungs.create({
+      // Create user
+      const user = await prisma.nguoi_dungs.create({
         data: {
-          ho_va_ten,
           email,
           mat_khau: hashedPassword,
-          vai_tro: vai_tro || "nguoi_dan",
+          ho_va_ten,
           so_dien_thoai,
+          vai_tro,
         },
       });
 
-      const token = await signToken({
-        userId: newUser.id,
-        email: newUser.email,
-        vai_tro: newUser.vai_tro,
-      });
-
-      const response = NextResponse.json(
+      // Generate JWT token
+      const token = sign(
         {
-          user: {
-            id: newUser.id,
-            ho_va_ten: newUser.ho_va_ten,
-            email: newUser.email,
-            vai_tro: newUser.vai_tro,
-            so_dien_thoai: newUser.so_dien_thoai,
-          },
-          token,
+          userId: user.id,
+          email: user.email,
+          role: user.vai_tro,
         },
-        { status: 201 },
+        process.env.JWT_SECRET || "your-secret-key",
+        {
+          expiresIn: "1d",
+        }
       );
 
-      response.cookies.set("token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 7,
+      return NextResponse.json({
+        message: "Đăng ký thành công",
+        user: {
+          id: user.id,
+          email: user.email,
+          ho_va_ten: user.ho_va_ten,
+          so_dien_thoai: user.so_dien_thoai,
+          vai_tro: user.vai_tro,
+        },
+        token,
       });
-
-      return response;
-    } else {
-      return NextResponse.json(
-        { error: "Action không hợp lệ" },
-        { status: 400 },
-      );
     }
+
+    return NextResponse.json(
+      { error: "Invalid action" },
+      { status: 400 }
+    );
+
   } catch (error) {
     console.error("Auth error:", error);
     return NextResponse.json(
-      { error: "Lỗi server", details: (error as Error).message },
-      { status: 500 },
+      { error: "Internal server error" },
+      { status: 500 }
     );
   }
 }
-
-// GET /api/auth - Get current user
-export async function GET(request: NextRequest) {
-  try {
-    const token = request.cookies.get("token")?.value;
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { verifyToken } = await import("@/lib/jwt");
-    const payload = await verifyToken(token);
-
-    if (!payload) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-
-    const user = await prisma.nguoi_dungs.findUnique({
-      where: { id: payload.userId },
-      select: {
-        id: true,
-        ho_va_ten: true,
-        email: true,
-        vai_tro: true,
-        so_dien_thoai: true,
-        hinh_anh: true,
-        vi_do: true,
-        kinh_do: true,
-      },
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 },
-      );
-    }
-
-    return NextResponse.json({ user }, { status: 200 });
-  } catch (error) {
-    console.error("Get user error:", error);
-    return NextResponse.json(
-      { error: "Lỗi server" },
-      { status: 500 },
-    );
-  }
-}
-
-// DELETE /api/auth - Logout
-export async function DELETE() {
-  const response = NextResponse.json(
-    { message: "Đăng xuất thành công" },
-    { status: 200 },
-  );
-
-  response.cookies.delete("token");
-
-  return response;
-}
-
