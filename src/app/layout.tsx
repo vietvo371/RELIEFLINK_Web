@@ -1,12 +1,14 @@
-import { Outfit } from 'next/font/google';
-import './globals.css';
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import QueryProvider from "@/providers/QueryProvider";
 
-import { SidebarProvider } from '@/context/SidebarContext';
-import { ThemeProvider } from '@/context/ThemeContext';
+const inter = Inter({ subsets: ["latin"] });
 
-const outfit = Outfit({
-  subsets: ["latin"],
-});
+export const metadata: Metadata = {
+  title: "RELIEFLINK - Disaster Relief Coordination",
+  description: "Real-Time Disaster Relief Coordination Platform with AI forecasting and Blockchain transparency",
+};
 
 export default function RootLayout({
   children,
@@ -14,13 +16,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${outfit.className} dark:bg-gray-900`}>
-        <ThemeProvider>
-          <SidebarProvider>{children}</SidebarProvider>
-        </ThemeProvider>
+    <html lang="vi">
+      <body className={inter.className}>
+        <QueryProvider>{children}</QueryProvider>
       </body>
     </html>
   );
 }
-
