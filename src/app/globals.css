@@ -641,7 +641,6 @@ span.flatpickr-weekday,
 .stocks-slider-outer .swiper-button-prev.swiper-button-disabled {
   @apply bg-white opacity-50 dark:bg-gray-900;
 }
-
 .stocks-slider-outer .swiper-button-next svg,
 .stocks-slider-outer .swiper-button-prev svg {
   @apply !h-auto !w-auto;
@@ -669,9 +668,7 @@ span.flatpickr-weekday,
 .carouselFour .swiper-button-next,
 .carouselFour .swiper-button-prev {
   @apply h-10 w-10 rounded-full border-[0.5px] border-white/10 bg-white/90 !text-gray-700 shadow-slider-navigation backdrop-blur-[10px];
-}
-
-.carouselTwo .swiper-button-prev,
+}.carouselTwo .swiper-button-prev,
 .carouselFour .swiper-button-prev {
   @apply !left-3 sm:!left-4;
 }
@@ -722,8 +719,7 @@ span.flatpickr-weekday,
 }
 .taskCheckbox:checked ~ p {
   @apply text-gray-400 line-through;
-}
-.taskCheckbox:checked ~ .box {
+}.taskCheckbox:checked ~ .box {
   @apply border-brand-500 bg-brand-500 dark:border-brand-500;
 }
 
@@ -764,9 +760,13 @@ span.flatpickr-weekday,
 
 .animate-slideIn {
   animation: slideIn 0.3s ease-out forwards;
-}
-
-.animate-slideOut {
+}.animate-slideOut {
   animation: slideOut 0.3s ease-in forwards;
 }
+
+
+
+
+
+
 
