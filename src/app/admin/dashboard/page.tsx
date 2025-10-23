@@ -3,37 +3,65 @@
 import { useRequests } from "@/hooks/useRequests";
 import { useResources } from "@/hooks/useResources";
 import { useDistributions } from "@/hooks/useDistributions";
+import { useCenters } from "@/hooks/useCenters";
+import { useUsers } from "@/hooks/useUsers";
+import { useAIPredictions } from "@/hooks/useAI";
 import SummaryCards from "@/components/relief/SummaryCards";
 import MapView from "@/components/relief/MapView";
 import ReliefCard from "@/components/relief/ReliefCard";
-import { Loader2 } from "lucide-react";
+import AdminLoading from "@/components/admin/AdminLoading";
+import AdminPageHeader from "@/components/admin/AdminPageHeader";
+import AdminStatsCard from "@/components/admin/AdminStatsCard";
+import ReliefPriorityChart from "@/components/charts/ReliefPriorityChart";
+import DistributionStatusChart from "@/components/charts/DistributionStatusChart";
+import ResourceTypeChart from "@/components/charts/ResourceTypeChart";
+import ChartTab from "@/components/common/ChartTab";
+import Badge from "@/components/ui/badge/Badge";
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  AlertTriangle, 
+  CheckCircle, 
+  Clock,
+  MapPin,
+  Users,
+  Package,
+  Truck,
+  Brain
+} from "lucide-react";
 
 export default function DashboardPage() {
   const { data: requestsData, isLoading: requestsLoading } = useRequests();
   const { data: resourcesData, isLoading: resourcesLoading } = useResources();
-  const { data: distributionsData, isLoading: distributionsLoading } =
-    useDistributions();
+  const { data: distributionsData, isLoading: distributionsLoading } = useDistributions();
+  const { data: centersData, isLoading: centersLoading } = useCenters();
+  const { data: usersData, isLoading: usersLoading } = useUsers();
+  const { data: aiData, isLoading: aiLoading } = useAIPredictions();
 
-  if (requestsLoading || resourcesLoading || distributionsLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-8 h-8 animate-spin text-green-600" />
-      </div>
-    );
+  if (requestsLoading || resourcesLoading || distributionsLoading || centersLoading || usersLoading) {
+    return <AdminLoading variant="page" label="Đang tải dữ liệu tổng quan..." />;
   }
 
   const requests = requestsData?.requests || [];
   const resources = resourcesData?.resources || [];
   const distributions = distributionsData?.distributions || [];
+  const centers = (centersData as any)?.centers || [];
+  const users = usersData?.users || [];
+  const predictions = aiData?.predictions || [];
 
+  // Calculate comprehensive stats
   const stats = {
     total_requests: requests.length,
     total_resources: resources.length,
     total_distributions: distributions.length,
-    urgent_requests: requests.filter(
-      (r: any) => r.do_uu_tien === "cao",
-    ).length,
+    urgent_requests: requests.filter((r: any) => r.do_uu_tien === "cao").length,
   };
+
+  // Calculate additional metrics
+  const completedDistributions = distributions.filter((d: any) => d.trang_thai === "hoan_thanh").length;
+  const completionRate = distributions.length > 0 ? Math.round((completedDistributions / distributions.length) * 100) : 0;
+  const activeVolunteers = users.filter((u: any) => u.vai_tro === "tinh_nguyen_vien").length;
+  const totalCenters = centers.length;
 
   // Prepare map markers
   const mapMarkers = requests
@@ -46,22 +74,113 @@ export default function DashboardPage() {
       type: "request" as const,
     }));
 
+  // Generate chart data for requests by priority
+  const priorityData = {
+    categories: ["Thấp", "Trung bình", "Cao"],
+    data: [
+      requests.filter((r: any) => r.do_uu_tien === "thap").length,
+      requests.filter((r: any) => r.do_uu_tien === "trung_binh").length,
+      requests.filter((r: any) => r.do_uu_tien === "cao").length,
+    ]
+  };
+
+  // Generate chart data for distributions by status
+  const statusData = {
+    categories: ["Chuẩn bị", "Vận chuyển", "Đang giao", "Hoàn thành"],
+    data: [
+      distributions.filter((d: any) => d.trang_thai === "dang_chuan_bi").length,
+      distributions.filter((d: any) => d.trang_thai === "dang_van_chuyen").length,
+      distributions.filter((d: any) => d.trang_thai === "dang_giao").length,
+      distributions.filter((d: any) => d.trang_thai === "hoan_thanh").length,
+    ]
+  };
+
+  // Generate chart data for resources by type
+  const resourceTypes = [...new Set(resources.map((r: any) => r.loai))];
+  const resourceData = {
+    categories: resourceTypes,
+    data: resourceTypes.map(type => 
+      resources.filter((r: any) => r.loai === type).length
+    )
+  };
+
+  // Recent activity data
+  const recentRequests = requests.slice(0, 5);
+  const recentDistributions = distributions.slice(0, 5);
+
   return (
     <div className="space-y-6">
-      {/* Page header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Dashboard
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">
-          Tổng quan hệ thống cứu trợ thảm họa
-        </p>
-      </div>
+      <AdminPageHeader
+        title="Dashboard"
+        description="Tổng quan hệ thống cứu trợ thảm họa"
+      />
 
       {/* Summary cards */}
       <SummaryCards stats={stats} />
 
-      {/* Map and recent requests */}
+      {/* Additional metrics cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <AdminStatsCard
+          title="Tỷ lệ hoàn thành"
+          value={`${completionRate}%`}
+          icon={CheckCircle}
+          color="green"
+          trend={{ value: 12, isPositive: true }}
+          description="Tăng so với tháng trước"
+        />
+
+        <AdminStatsCard
+          title="Tình nguyện viên"
+          value={activeVolunteers}
+          icon={Users}
+          color="blue"
+          trend={{ value: 8, isPositive: true }}
+          description="Đang hoạt động"
+        />
+
+        <AdminStatsCard
+          title="Trung tâm"
+          value={totalCenters}
+          icon={MapPin}
+          color="purple"
+          description="Trên toàn quốc"
+        />
+
+        <AdminStatsCard
+          title="Dự báo AI"
+          value={predictions.length}
+          icon={Brain}
+          color="orange"
+          trend={{ value: 15, isPositive: true }}
+          description="Dự báo mới"
+        />
+      </div>
+
+      {/* Charts section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Requests by Priority Chart */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Yêu cầu theo mức độ ưu tiên
+            </h2>
+            <ChartTab />
+          </div>
+          <ReliefPriorityChart data={priorityData} />
+        </div>
+
+        {/* Distribution Status Chart */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Trạng thái phân phối
+            </h2>
+            <ChartTab />
+          </div>
+          <DistributionStatusChart data={statusData} />
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Map */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
@@ -79,10 +198,21 @@ export default function DashboardPage() {
             Yêu cầu gần đây
           </h2>
           <div className="space-y-4 max-h-[400px] overflow-y-auto">
-            {requests.slice(0, 3).map((request: any) => (
-              <ReliefCard key={request.id} request={request} />
+            {recentRequests.map((request: any) => (
+              <div key={request.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900 dark:text-white">{request.loai_yeu_cau}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{request.so_nguoi} người</p>
+                </div>
+                <Badge 
+                  color={request.do_uu_tien === "cao" ? "error" : request.do_uu_tien === "trung_binh" ? "warning" : "info"}
+                  size="sm"
+                >
+                  {request.do_uu_tien}
+                </Badge>
+              </div>
             ))}
-            {requests.length === 0 && (
+            {recentRequests.length === 0 && (
               <p className="text-gray-500 dark:text-gray-400 text-center py-8">
                 Chưa có yêu cầu nào
               </p>
@@ -91,7 +221,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Recent distributions */}
+      {/* Recent distributions table */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
           Phân phối gần đây
@@ -118,10 +248,10 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {distributions.slice(0, 5).map((dist: any) => (
+              {recentDistributions.map((dist: any) => (
                 <tr
                   key={dist.id}
-                  className="border-b border-gray-100 dark:border-gray-800"
+                  className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
                 >
                   <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-300">
                     #{dist.id}
@@ -133,9 +263,16 @@ export default function DashboardPage() {
                     {dist.tinh_nguyen_vien?.ho_va_ten || "N/A"}
                   </td>
                   <td className="py-3 px-4">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 text-xs rounded-full">
+                    <Badge 
+                      color={
+                        dist.trang_thai === "hoan_thanh" ? "success" :
+                        dist.trang_thai === "dang_giao" ? "warning" :
+                        dist.trang_thai === "dang_van_chuyen" ? "info" : "light"
+                      }
+                      size="sm"
+                    >
                       {dist.trang_thai}
-                    </span>
+                    </Badge>
                   </td>
                   <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-300 font-mono">
                     {dist.ma_giao_dich
@@ -146,7 +283,7 @@ export default function DashboardPage() {
               ))}
             </tbody>
           </table>
-          {distributions.length === 0 && (
+          {recentDistributions.length === 0 && (
             <p className="text-gray-500 dark:text-gray-400 text-center py-8">
               Chưa có phân phối nào
             </p>
@@ -156,4 +293,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
         {
           userId: user.id,
           email: user.email,
-          role: user.vai_tro,
+          vai_tro: user.vai_tro,
         },
         process.env.JWT_SECRET || "your-secret-key",
         {
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
         {
           userId: user.id,
           email: user.email,
-          role: user.vai_tro,
+          vai_tro: user.vai_tro,
         },
         process.env.JWT_SECRET || "your-secret-key",
         {

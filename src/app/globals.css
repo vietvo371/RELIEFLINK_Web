@@ -147,7 +147,7 @@
   --shadow-theme-xl:
     0px 20px 24px -4px rgba(16, 24, 40, 0.08),
     0px 8px 8px -4px rgba(16, 24, 40, 0.03);
-  --shadow-datepicker: -5px 0 0 #262d3c, 5px 0 0 #262d3c;
+  --shadow-datepicker: -5px 0 0 #1d2939, 5px 0 0 #1d2939;
   --shadow-focus-ring: 0px 0px 0px 4px rgba(70, 95, 255, 0.12);
   --shadow-slider-navigation:
     0px 1px 2px 0px rgba(16, 24, 40, 0.1), 0px 1px 3px 0px rgba(16, 24, 40, 0.1);
@@ -183,12 +183,29 @@
   ::file-selector-button {
     border-color: var(--color-gray-200, currentColor);
   }
+  
+  .dark *,
+  .dark ::after,
+  .dark ::before,
+  .dark ::backdrop,
+  .dark ::file-selector-button {
+    border-color: var(--color-gray-700, currentColor);
+  }
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
   body {
-    @apply relative font-normal font-outfit z-1 bg-gray-50;
+    @apply relative font-normal font-outfit z-1 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100;
+  }
+  
+  /* Force light theme for auth pages */
+  .auth-layout {
+    @apply bg-white text-gray-900;
+  }
+  
+  .auth-layout * {
+    @apply text-gray-900;
   }
 }
 
@@ -267,16 +284,16 @@
   }
 
   &::-webkit-scrollbar-track {
-    @apply rounded-full;
+    @apply rounded-full bg-gray-100 dark:bg-gray-800;
   }
 
   &::-webkit-scrollbar-thumb {
-    @apply bg-gray-200 rounded-full dark:bg-gray-700;
+    @apply bg-gray-200 rounded-full dark:bg-gray-600;
   }
 }
 
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #344054;
+  background-color: #475467;
 }
 
 
@@ -415,7 +432,10 @@ span.flatpickr-weekday,
 }
 .flatpickr-day.inRange {
   box-shadow: -5px 0 0 #f9fafb, 5px 0 0 #f9fafb !important;
-  @apply dark:!shadow-datepicker;
+}
+
+.dark .flatpickr-day.inRange {
+  box-shadow: -5px 0 0 #1d2939, 5px 0 0 #1d2939 !important;
 }
 .flatpickr-day.inRange,
 .flatpickr-day.prevMonthDay.inRange,

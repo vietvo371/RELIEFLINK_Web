@@ -1,36 +1,46 @@
 "use client";
 
-import { Truck } from "lucide-react";
+import { useState } from "react";
+import { Box, Truck } from "lucide-react";
+import AdminPageHeader from "@/components/admin/AdminPageHeader";
+import AdminModal from "@/components/admin/AdminModal";
+import AdminEmptyState from "@/components/admin/AdminEmptyState";
 
 export default function AdminDistributionsPage() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Quản lý phân phối
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Theo dõi tiến độ phân phối và vận chuyển
-          </p>
-        </div>
-        <button className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
-          + Thêm phân phối
-        </button>
-      </div>
+      <AdminPageHeader
+        title="Quản lý phân phối"
+        description="Theo dõi tiến độ phân phối và vận chuyển"
+        showAddButton
+        addButtonText="+ Thêm phân phối"
+        onAdd={() => setIsModalOpen(true)}
+      />
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-12">
-        <div className="text-center">
-          <Truck className="w-20 h-20 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            Trang quản lý phân phối
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400">
-            Chức năng đang được phát triển...
-          </p>
-        </div>
-      </div>
+      <AdminEmptyState
+        icon={<Truck className="h-6 w-6" aria-hidden />}
+        title="Trang quản lý phân phối"
+        description="Chức năng đang được phát triển. Chúng tôi sẽ cập nhật khi hệ thống vận hành đầy đủ."
+      />
+
+      <AdminModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Thêm phân phối mới"
+        description="Chức năng thêm phân phối đang được hoàn thiện."
+        size="md"
+      >
+        <AdminEmptyState
+          icon={<Box className="h-6 w-6" aria-hidden />}
+          title="Tính năng đang xây dựng"
+          description="Bạn sẽ quản lý lịch sử và kế hoạch phân phối trực tiếp từ đây sau khi cập nhật."
+          variant="subtle"
+          compact
+          className="border-none bg-transparent shadow-none"
+        />
+      </AdminModal>
     </div>
   );
 }
-

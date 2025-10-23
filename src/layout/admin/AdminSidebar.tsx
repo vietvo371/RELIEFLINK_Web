@@ -21,7 +21,11 @@ const navItems: NavItem[] = [
   { name: "Trung tâm", href: "/admin/centers", icon: Building2 },
   { name: "Phân phối", href: "/admin/distributions", icon: Truck },
   { name: "Người dùng", href: "/admin/users", icon: Users },
+  { name: "Bản đồ", href: "/admin/map", icon: LayoutDashboard },
+  { name: "Blockchain", href: "/admin/blockchain", icon: FileText },
+  { name: "Báo cáo", href: "/admin/reports", icon: FileText },
   { name: "AI Dự báo", href: "/admin/ai", icon: Brain },
+  { name: "Cấu hình", href: "/admin/settings", icon: FileText },
   { name: "Hồ sơ", href: "/admin/profile", icon: User },
 ];
 

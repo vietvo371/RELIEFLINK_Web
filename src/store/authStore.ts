@@ -33,8 +33,11 @@ export const useAuthStore = create<AuthState>()(
       setToken: (token) => set({ token }),
       login: (user, token) =>
         set({ user, token, isAuthenticated: true }),
-      logout: () =>
-        set({ user: null, token: null, isAuthenticated: false }),
+      logout: () => {
+        // Clear cookie
+        document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        set({ user: null, token: null, isAuthenticated: false });
+      },
     }),
     {
       name: "relieflink-auth",

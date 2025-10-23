@@ -23,28 +23,56 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
     const savedTheme = localStorage.getItem("theme") as Theme | null;
     const initialTheme = savedTheme || "light"; // Default to light theme
 
-    setTheme(initialTheme);
+    console.log("Theme initialization:", { savedTheme, initialTheme });
+
+    // Force light theme for auth pages
+    const isAuthPage = window.location.pathname.startsWith('/login') || 
+                      window.location.pathname.startsWith('/register') ||
+                      window.location.pathname.startsWith('/forgot-password');
+    
+    if (isAuthPage) {
+      console.log("Auth page detected, forcing light theme");
+      document.documentElement.classList.remove("dark");
+      setTheme("light");
+    } else {
+      // Ensure we start with light theme and remove any existing dark class
+      document.documentElement.classList.remove("dark");
+      setTheme(initialTheme);
+    }
+    
     setIsInitialized(true);
   }, []);
 
   useEffect(() => {
     if (isInitialized) {
+      console.log("Theme change:", { theme, isInitialized });
       localStorage.setItem("theme", theme);
       if (theme === "dark") {
         document.documentElement.classList.add("dark");
+        console.log("Added dark class");
       } else {
         document.documentElement.classList.remove("dark");
+        console.log("Removed dark class");
       }
     }
   }, [theme, isInitialized]);
 
   const toggleTheme = () => {
-    setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
+    console.log("Toggle theme called, current theme:", theme);
+    setTheme((prevTheme) => {
+      const newTheme = prevTheme === "light" ? "dark" : "light";
+      console.log("Theme toggled from", prevTheme, "to", newTheme);
+      return newTheme;
+    });
   };
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
+      {isInitialized ? children : (
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-gray-500">Loading theme...</div>
+        </div>
+      )}
     </ThemeContext.Provider>
   );
 };

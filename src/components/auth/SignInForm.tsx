@@ -9,6 +9,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import { useToast } from "@/context/ToastContext";
+import { getDashboardUrl } from "@/lib/redirect";
 
 interface LoginFormData {
   email: string;
@@ -56,15 +57,39 @@ export default function SignInForm() {
       }
 
       login(data.user, data.token);
+      
+      // Set token in cookie for middleware
+      document.cookie = `token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}; secure; samesite=strict`;
+      
+      console.log("User data:", data.user);
+      console.log("User role:", data.user.vai_tro);
+      console.log("Token set in cookie:", data.token);
       success("🎉 Đăng nhập thành công!");
       
-      // Redirect based on role
-      const role = data.user.vai_tro;
-      if (role === "admin") {
-        router.push("/admin/dashboard");
-      } else if (role === "tinh_nguyen_vien") {
-        router.push("/volunteer/dashboard");
-      } else {
+      // Redirect based on role using utility function
+      const role = data.user.vai_tro as "admin" | "tinh_nguyen_vien" | "nguoi_dan";
+      console.log("Role for redirect:", role);
+      
+      try {
+        const dashboardUrl = getDashboardUrl(role);
+        console.log("Dashboard URL:", dashboardUrl);
+        console.log("Attempting redirect to:", dashboardUrl);
+        
+        // Small delay to ensure cookie is set
+        setTimeout(() => {
+          console.log("Attempting redirect with router.push");
+          router.push(dashboardUrl);
+          console.log("Router.push completed");
+          
+          // Fallback with window.location if router.push doesn't work
+          setTimeout(() => {
+            console.log("Fallback redirect with window.location");
+            window.location.href = dashboardUrl;
+          }, 500);
+        }, 100);
+      } catch (error) {
+        console.error("Redirect error:", error);
+        // Fallback redirect
         router.push("/citizen/dashboard");
       }
     } catch (err: any) {
