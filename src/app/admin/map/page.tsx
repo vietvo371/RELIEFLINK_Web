@@ -22,7 +22,11 @@ export default function AdminMapPage() {
       latitude: parseFloat(r.vi_do), 
       longitude: parseFloat(r.kinh_do), 
       title: r.loai_yeu_cau, 
-      type: "request" as const 
+      type: "request" as const,
+      priority: r.do_uu_tien,
+      status: r.trang_thai,
+      personCount: r.so_nguoi,
+      description: r.mo_ta,
     }));
 
   return (

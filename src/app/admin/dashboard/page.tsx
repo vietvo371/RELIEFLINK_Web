@@ -17,6 +17,13 @@ import DistributionStatusChart from "@/components/charts/DistributionStatusChart
 import ResourceTypeChart from "@/components/charts/ResourceTypeChart";
 import ChartTab from "@/components/common/ChartTab";
 import Badge from "@/components/ui/badge/Badge";
+import {
+  translatePriority,
+  translateRequestStatus,
+  translateDistributionStatus,
+  getPriorityColor,
+  getDistributionStatusColor,
+} from "@/lib/translations";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -72,6 +79,10 @@ export default function DashboardPage() {
       longitude: parseFloat(r.kinh_do),
       title: r.loai_yeu_cau,
       type: "request" as const,
+      priority: r.do_uu_tien,
+      status: r.trang_thai,
+      personCount: r.so_nguoi,
+      description: r.mo_ta,
     }));
 
   // Generate chart data for requests by priority
@@ -205,10 +216,10 @@ export default function DashboardPage() {
                   <p className="text-sm text-gray-600 dark:text-gray-400">{request.so_nguoi} người</p>
                 </div>
                 <Badge 
-                  color={request.do_uu_tien === "cao" ? "error" : request.do_uu_tien === "trung_binh" ? "warning" : "info"}
+                  color={getPriorityColor(request.do_uu_tien)}
                   size="sm"
                 >
-                  {request.do_uu_tien}
+                  {translatePriority(request.do_uu_tien)}
                 </Badge>
               </div>
             ))}
@@ -264,14 +275,10 @@ export default function DashboardPage() {
                   </td>
                   <td className="py-3 px-4">
                     <Badge 
-                      color={
-                        dist.trang_thai === "hoan_thanh" ? "success" :
-                        dist.trang_thai === "dang_giao" ? "warning" :
-                        dist.trang_thai === "dang_van_chuyen" ? "info" : "light"
-                      }
+                      color={getDistributionStatusColor(dist.trang_thai)}
                       size="sm"
                     >
-                      {dist.trang_thai}
+                      {translateDistributionStatus(dist.trang_thai)}
                     </Badge>
                   </td>
                   <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-300 font-mono">

@@ -1,10 +1,39 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/context/ToastContext";
 
+export type AdminCenter = {
+  id: number;
+  ten_trung_tam: string;
+  dia_chi: string;
+  vi_do?: number | null;
+  kinh_do?: number | null;
+  nguoi_quan_ly?: string | null;
+  so_lien_he?: string | null;
+  nguon_lucs: Array<{
+    id: number;
+    ten_nguon_luc: string;
+    loai: string;
+  }>;
+  created_at?: string;
+};
+
+type CentersResponse = {
+  centers: AdminCenter[];
+};
+
+type CreateCenterPayload = {
+  ten_trung_tam: string;
+  dia_chi: string;
+  vi_do?: number | null;
+  kinh_do?: number | null;
+  nguoi_quan_ly?: string;
+  so_lien_he?: string;
+};
+
 export function useCenters() {
   const { error: showError } = useToast();
 
-  return useQuery({
+  return useQuery<CentersResponse>({
     queryKey: ["centers"],
     queryFn: async () => {
       const res = await fetch(`/api/centers`);
@@ -17,7 +46,7 @@ export function useCenters() {
     onError: (err: Error) => {
       showError(err.message);
     },
-  } as any);
+  });
 }
 
 export function useCreateCenter() {
@@ -25,7 +54,7 @@ export function useCreateCenter() {
   const { success, error: showError } = useToast();
 
   return useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: CreateCenterPayload) => {
       const res = await fetch("/api/centers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

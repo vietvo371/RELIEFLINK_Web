@@ -9,7 +9,10 @@ export async function GET(request: NextRequest) {
     const trang_thai = searchParams.get("trang_thai");
     const do_uu_tien = searchParams.get("do_uu_tien");
 
-    const where: any = {};
+    const where: {
+      trang_thai?: string;
+      do_uu_tien?: string;
+    } = {};
     if (trang_thai) where.trang_thai = trang_thai;
     if (do_uu_tien) where.do_uu_tien = do_uu_tien;
 
@@ -72,14 +75,35 @@ export async function POST(request: NextRequest) {
       vi_do,
       kinh_do,
       trang_thai,
+      id_nguoi_dung,
     } = body;
+
+    const targetUserIdRaw =
+      id_nguoi_dung !== undefined && id_nguoi_dung !== null
+        ? Number(id_nguoi_dung)
+        : payload.userId;
+
+    if (!targetUserIdRaw || Number.isNaN(targetUserIdRaw)) {
+      return NextResponse.json(
+        { error: "Thiếu thông tin người gửi yêu cầu" },
+        { status: 400 },
+      );
+    }
+
+    const parsedPeople = Number(so_nguoi);
+    if (!Number.isFinite(parsedPeople) || parsedPeople <= 0) {
+      return NextResponse.json(
+        { error: "Số người ảnh hưởng không hợp lệ" },
+        { status: 400 },
+      );
+    }
 
     const newRequest = await prisma.yeu_cau_cuu_tros.create({
       data: {
-        id_nguoi_dung: payload.userId,
+        id_nguoi_dung: targetUserIdRaw,
         loai_yeu_cau,
         mo_ta,
-        so_nguoi: parseInt(so_nguoi),
+        so_nguoi: parsedPeople,
         do_uu_tien: do_uu_tien || "trung_binh",
         vi_do: vi_do ? parseFloat(vi_do) : null,
         kinh_do: kinh_do ? parseFloat(kinh_do) : null,
@@ -98,10 +122,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ request: newRequest }, { status: 201 });
   } catch (error) {
     console.error("Create request error:", error);
-    return NextResponse.json(
-      { error: "Lỗi khi tạo yêu cầu cứu trợ" },
-      { status: 500 },
-    );
+    const message =
+      error instanceof Error
+        ? error.message || "Lỗi khi tạo yêu cầu cứu trợ"
+        : "Lỗi khi tạo yêu cầu cứu trợ";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-

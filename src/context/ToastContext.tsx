@@ -36,7 +36,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       const id = Math.random().toString(36).substring(2, 9);
       const newToast: Toast = { id, type, message, duration };
 
-      setToasts((prev) => [...prev, newToast]);
+      console.log("🔔 Adding toast:", newToast);
+      setToasts((prev) => {
+        const updated = [...prev, newToast];
+        console.log("📋 All toasts:", updated);
+        return updated;
+      });
 
       if (duration > 0) {
         setTimeout(() => {
@@ -93,10 +98,17 @@ function ToastContainer({
   toasts: Toast[];
   removeToast: (id: string) => void;
 }) {
+  console.log("🎯 ToastContainer rendering with toasts:", toasts.length);
+  
   return (
-    <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm">
+    <div 
+      className="fixed top-4 right-4 flex flex-col gap-2 max-w-sm pointer-events-none"
+      style={{ zIndex: 999999 }}
+    >
       {toasts.map((toast) => (
-        <ToastItem key={toast.id} toast={toast} onClose={() => removeToast(toast.id)} />
+        <div key={toast.id} className="pointer-events-auto">
+          <ToastItem toast={toast} onClose={() => removeToast(toast.id)} />
+        </div>
       ))}
     </div>
   );

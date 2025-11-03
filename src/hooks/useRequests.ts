@@ -1,13 +1,37 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/context/ToastContext";
 
-export function useRequests(filters?: { trang_thai?: string; do_uu_tien?: string }) {
+type RequestFilters = { trang_thai?: string; do_uu_tien?: string };
+
+type RequestsResponse = {
+  requests: unknown[];
+};
+
+type CreateRequestPayload = {
+  loai_yeu_cau: string;
+  mo_ta?: string | null;
+  so_nguoi: number;
+  do_uu_tien: string;
+  trang_thai: string;
+  vi_do: number | null;
+  kinh_do: number | null;
+  id_nguoi_dung?: number;
+};
+
+type UpdateRequestPayload = {
+  do_uu_tien?: string;
+  trang_thai?: string;
+  vi_do?: number | null;
+  kinh_do?: number | null;
+};
+
+export function useRequests(filters?: RequestFilters) {
   const { error: showError } = useToast();
   const params = new URLSearchParams();
   if (filters?.trang_thai) params.append("trang_thai", filters.trang_thai);
   if (filters?.do_uu_tien) params.append("do_uu_tien", filters.do_uu_tien);
 
-  return useQuery({
+  return useQuery<RequestsResponse>({
     queryKey: ["requests", filters],
     queryFn: async () => {
       const res = await fetch(`/api/requests?${params.toString()}`);
@@ -20,60 +44,75 @@ export function useRequests(filters?: { trang_thai?: string; do_uu_tien?: string
     onError: (err: Error) => {
       showError(err.message);
     },
-  } as any);
+  });
 }
 
 export function useCreateRequest() {
   const queryClient = useQueryClient();
-  const { success, error: showError } = useToast();
+  const { error: showError } = useToast();
 
   return useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: CreateRequestPayload) => {
       const res = await fetch("/api/requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Lỗi khi tạo yêu cầu");
+        const errorText = await res.text();
+        let errorMessage = "Lỗi khi tạo yêu cầu";
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData?.error) {
+            errorMessage = errorData.error;
+          }
+        } catch {
+          // ignore parse error and fallback to default message
+        }
+        throw new Error(errorMessage);
       }
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["requests"] });
-      success("✅ Tạo yêu cầu cứu trợ thành công!");
     },
     onError: (err: Error) => {
-      showError(err.message);
+      showError(err.message || "Lỗi khi tạo yêu cầu");
     },
   });
 }
 
 export function useUpdateRequest(id: number) {
   const queryClient = useQueryClient();
-  const { success, error: showError } = useToast();
+  const { error: showError } = useToast();
 
   return useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: UpdateRequestPayload) => {
       const res = await fetch(`/api/requests/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Lỗi khi cập nhật yêu cầu");
+        const errorText = await res.text();
+        let errorMessage = "Lỗi khi cập nhật yêu cầu";
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData?.error) {
+            errorMessage = errorData.error;
+          }
+        } catch {
+          // ignore parse error
+        }
+        throw new Error(errorMessage);
       }
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["requests"] });
-      success("✅ Cập nhật yêu cầu thành công!");
     },
     onError: (err: Error) => {
-      showError(err.message);
+      showError(err.message || "Lỗi khi cập nhật yêu cầu");
     },
   });
 }
-

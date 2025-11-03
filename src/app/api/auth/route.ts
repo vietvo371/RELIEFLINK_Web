@@ -1,7 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { sign } from "jsonwebtoken";
+import { SignJWT } from "jose";
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || "default_secret_change_me",
+);
+
+interface TokenPayload {
+  userId: number;
+  email: string;
+  vai_tro: string;
+}
+
+async function signToken(payload: TokenPayload) {
+  return new SignJWT(payload)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("7d")
+    .sign(JWT_SECRET);
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,19 +49,13 @@ export async function POST(req: NextRequest) {
       }
 
       // Generate JWT token
-      const token = sign(
-        {
-          userId: user.id,
-          email: user.email,
-          vai_tro: user.vai_tro,
-        },
-        process.env.JWT_SECRET || "your-secret-key",
-        {
-          expiresIn: "1d",
-        }
-      );
+      const token = await signToken({
+        userId: user.id,
+        email: user.email,
+        vai_tro: user.vai_tro,
+      });
 
-      return NextResponse.json({
+      const response = NextResponse.json({
         message: "Đăng nhập thành công",
         user: {
           id: user.id,
@@ -55,6 +67,17 @@ export async function POST(req: NextRequest) {
         token,
       });
 
+      response.cookies.set({
+        name: "token",
+        value: token,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+
+      return response;
     } else if (action === "register") {
       // Check if user exists
       const existingUser = await prisma.nguoi_dungs.findUnique({
@@ -83,19 +106,13 @@ export async function POST(req: NextRequest) {
       });
 
       // Generate JWT token
-      const token = sign(
-        {
-          userId: user.id,
-          email: user.email,
-          vai_tro: user.vai_tro,
-        },
-        process.env.JWT_SECRET || "your-secret-key",
-        {
-          expiresIn: "1d",
-        }
-      );
+      const token = await signToken({
+        userId: user.id,
+        email: user.email,
+        vai_tro: user.vai_tro,
+      });
 
-      return NextResponse.json({
+      const response = NextResponse.json({
         message: "Đăng ký thành công",
         user: {
           id: user.id,
@@ -106,6 +123,18 @@ export async function POST(req: NextRequest) {
         },
         token,
       });
+
+      response.cookies.set({
+        name: "token",
+        value: token,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7,
+      });
+
+      return response;
     }
 
     return NextResponse.json(

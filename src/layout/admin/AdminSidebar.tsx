@@ -82,7 +82,7 @@ const AdminSidebar: React.FC = () => {
           !isExpanded && !isHovered ? "lg:justify-center" : "justify-center"
         }`}
       >
-        <Link href="/">
+        <Link href="/admin/dashboard">
           {isExpanded || isHovered || isMobileOpen ? (
             <>
               <Image
