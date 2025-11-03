@@ -67,7 +67,8 @@ export default function SignInForm() {
       success("🎉 Đăng nhập thành công!");
       
       // Redirect based on role using utility function
-      const role = data.user.vai_tro as "admin" | "tinh_nguyen_vien" | "nguoi_dan";
+      // getDashboardUrl will normalize the role (e.g., "quan_tri" -> "admin")
+      const role = data.user.vai_tro as string;
       console.log("Role for redirect:", role);
       
       try {

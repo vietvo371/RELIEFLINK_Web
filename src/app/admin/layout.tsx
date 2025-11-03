@@ -30,7 +30,7 @@ function AdminLayoutContent({
         {/* Header */}
         <AdminHeader />
         {/* Page Content */}
-        <div className="p-4 mx-auto max-w-(--breakpoint-2xl) md:p-6">{children}</div>
+        <div className="p-4 mx-auto max-w-(--breakpoint-2xxl) md:p-4">{children}</div>
       </div>
     </div>
   ); 

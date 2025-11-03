@@ -31,7 +31,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Role-based access control
-  const userRole = payload.vai_tro as "admin" | "tinh_nguyen_vien" | "nguoi_dan";
+  const userRole = payload.vai_tro as string;
   console.log("Middleware - User role:", userRole);
   console.log("Middleware - Current pathname:", pathname);
 
