@@ -7,10 +7,19 @@ import { NotificationService } from "@/lib/notificationService";
 // GET /api/requests - Get all relief requests
 export async function GET(request: NextRequest) {
   try {
+    const token = request.cookies.get("token")?.value;
+    let payload: any = null;
+    
+    if (token) {
+      const { verifyToken } = await import("@/lib/jwt");
+      payload = await verifyToken(token);
+    }
+
     const { searchParams } = new URL(request.url);
     const trang_thai = searchParams.get("trang_thai");
     const do_uu_tien = searchParams.get("do_uu_tien");
     const trang_thai_phe_duyet = searchParams.get("trang_thai_phe_duyet");
+    const id_nguoi_dung = searchParams.get("id_nguoi_dung");
     const sortBy = searchParams.get("sortBy") || "created_at";
     const sortOrder = searchParams.get("sortOrder") || "desc";
 
@@ -18,6 +27,15 @@ export async function GET(request: NextRequest) {
     if (trang_thai) where.trang_thai = trang_thai;
     if (do_uu_tien) where.do_uu_tien = do_uu_tien;
     if (trang_thai_phe_duyet) where.trang_thai_phe_duyet = trang_thai_phe_duyet;
+    
+    // Filter by user ID if provided (for citizen to see only their requests)
+    // Or if user is citizen, only show their own requests
+    if (id_nguoi_dung) {
+      where.id_nguoi_dung = parseInt(id_nguoi_dung);
+    } else if (payload && payload.vai_tro === "citizen") {
+      // Citizen can only see their own requests
+      where.id_nguoi_dung = payload.userId;
+    }
 
     // Sắp xếp theo priority score nếu được chọn
     const orderBy: any = {};

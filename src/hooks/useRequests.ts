@@ -20,11 +20,14 @@ type CreateRequestPayload = {
 };
 
 type UpdateRequestPayload = {
+  loai_yeu_cau?: string;
+  mo_ta?: string | null;
+  dia_chi?: string | null;
+  so_nguoi?: number;
   do_uu_tien?: string;
   trang_thai?: string;
   vi_do?: number | null;
   kinh_do?: number | null;
-  dia_chi?: string | null;
 };
 
 export function useRequests(filters?: RequestFilters) {
@@ -115,6 +118,39 @@ export function useUpdateRequest(id: number) {
     },
     onError: (err: Error) => {
       showError(err.message || "Lỗi khi cập nhật yêu cầu");
+    },
+  });
+}
+
+export function useDeleteRequest() {
+  const queryClient = useQueryClient();
+  const { error: showError } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/requests/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        let errorMessage = "Lỗi khi xóa yêu cầu";
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData?.error) {
+            errorMessage = errorData.error;
+          }
+        } catch {
+          // ignore parse error
+        }
+        throw new Error(errorMessage);
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
+    },
+    onError: (err: Error) => {
+      showError(err.message || "Lỗi khi xóa yêu cầu");
     },
   });
 }

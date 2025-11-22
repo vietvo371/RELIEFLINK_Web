@@ -11,11 +11,45 @@ export async function GET(
     const requestData = await prisma.yeu_cau_cuu_tros.findUnique({
       where: { id: parseInt(id) },
       include: {
-        nguoi_dung: true,
+        nguoi_dung: {
+          select: {
+            id: true,
+            ho_va_ten: true,
+            email: true,
+            so_dien_thoai: true,
+          },
+        },
+        nguoi_phe_duyet: {
+          select: {
+            ho_va_ten: true,
+            vai_tro: true,
+          },
+        },
+        nguon_luc_match: {
+          include: {
+            trung_tam: {
+              select: {
+                id: true,
+                ten_trung_tam: true,
+                dia_chi: true,
+                vi_do: true,
+                kinh_do: true,
+              },
+            },
+          },
+        },
         phan_phois: {
           include: {
-            nguon_luc: true,
-            tinh_nguyen_vien: true,
+            nguon_luc: {
+              select: {
+                ten_nguon_luc: true,
+              },
+            },
+            tinh_nguyen_vien: {
+              select: {
+                ho_va_ten: true,
+              },
+            },
           },
         },
       },
@@ -26,6 +60,22 @@ export async function GET(
         { error: "Yêu cầu không tồn tại" },
         { status: 404 },
       );
+    }
+
+    // Check permissions: If user is authenticated, verify they can access this request
+    const token = request.cookies.get("token")?.value;
+    if (token) {
+      const { verifyToken } = await import("@/lib/jwt");
+      const payload = await verifyToken(token);
+      if (payload) {
+        // If user is citizen, only allow access to their own requests
+        if (payload.vai_tro === "citizen" && requestData.id_nguoi_dung !== payload.userId) {
+          return NextResponse.json(
+            { error: "Bạn không có quyền truy cập yêu cầu này" },
+            { status: 403 },
+          );
+        }
+      }
     }
 
     return NextResponse.json({ request: requestData }, { status: 200 });
@@ -44,9 +94,49 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const token = request.cookies.get("token")?.value;
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { verifyToken } = await import("@/lib/jwt");
+    const payload = await verifyToken(token);
+    if (!payload) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+
     const { id } = await params;
     const body = await request.json();
     const { vi_do, kinh_do } = body;
+
+    // Get existing request to check ownership
+    const existingRequestForAuth = await prisma.yeu_cau_cuu_tros.findUnique({
+      where: { id: parseInt(id) },
+      select: { id_nguoi_dung: true, trang_thai_phe_duyet: true },
+    });
+
+    if (!existingRequestForAuth) {
+      return NextResponse.json(
+        { error: "Yêu cầu không tồn tại" },
+        { status: 404 },
+      );
+    }
+
+    // Check permissions: Only admin can update any request, citizen can only update their own requests
+    if (payload.vai_tro !== "admin" && existingRequestForAuth.id_nguoi_dung !== payload.userId) {
+      return NextResponse.json(
+        { error: "Bạn không có quyền cập nhật yêu cầu này" },
+        { status: 403 },
+      );
+    }
+
+    // Citizen cannot update if request is already approved
+    if (payload.vai_tro === "citizen" && existingRequestForAuth.trang_thai_phe_duyet === "da_phe_duyet") {
+      return NextResponse.json(
+        { error: "Không thể chỉnh sửa yêu cầu đã được phê duyệt" },
+        { status: 403 },
+      );
+    }
 
     // ALWAYS validate location - whether updating or not
     const { validateCoordinates, isWithinVietnamBounds } = await import("@/lib/locationValidation");
@@ -172,7 +262,47 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const token = request.cookies.get("token")?.value;
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { verifyToken } = await import("@/lib/jwt");
+    const payload = await verifyToken(token);
+    if (!payload) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+
     const { id } = await params;
+
+    // Get existing request to check ownership
+    const existingRequest = await prisma.yeu_cau_cuu_tros.findUnique({
+      where: { id: parseInt(id) },
+      select: { id_nguoi_dung: true, trang_thai_phe_duyet: true },
+    });
+
+    if (!existingRequest) {
+      return NextResponse.json(
+        { error: "Yêu cầu không tồn tại" },
+        { status: 404 },
+      );
+    }
+
+    // Check permissions: Only admin can delete any request, citizen can only delete their own requests
+    if (payload.vai_tro !== "admin" && existingRequest.id_nguoi_dung !== payload.userId) {
+      return NextResponse.json(
+        { error: "Bạn không có quyền xóa yêu cầu này" },
+        { status: 403 },
+      );
+    }
+
+    // Citizen cannot delete if request is already approved
+    if (payload.vai_tro === "citizen" && existingRequest.trang_thai_phe_duyet === "da_phe_duyet") {
+      return NextResponse.json(
+        { error: "Không thể xóa yêu cầu đã được phê duyệt" },
+        { status: 403 },
+      );
+    }
 
     await prisma.yeu_cau_cuu_tros.delete({
       where: { id: parseInt(id) },

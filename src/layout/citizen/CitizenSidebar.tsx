@@ -5,7 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useCitizenSidebar } from "@/context/CitizenSidebarContext";
 import { HorizontaLDots } from "@/icons/index";
-import { FileText, LayoutDashboard, User, Bell, MapPin, History } from "lucide-react";
+import { FileText, LayoutDashboard, User, Eye } from "lucide-react";
 import SidebarWidget from "@/layout/SidebarWidget";
 
 type NavItem = {
@@ -15,12 +15,9 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { name: "Dashboard", href: "/citizen/dashboard", icon: LayoutDashboard },
-  { name: "Yêu cầu của tôi", href: "/citizen/requests", icon: FileText },
-  { name: "Tạo yêu cầu", href: "/citizen/new-request", icon: FileText },
-  { name: "Bản đồ cứu trợ", href: "/citizen/map", icon: MapPin },
-  { name: "Lịch sử", href: "/citizen/history", icon: History },
-  { name: "Thông báo", href: "/citizen/notifications", icon: Bell },
+  { name: "Trang chủ", href: "/citizen/dashboard", icon: LayoutDashboard },
+  { name: "Yêu cầu của tôi", href: "/citizen/my-requests", icon: FileText },
+  { name: "Trạng thái cứu trợ", href: "/citizen/status", icon: Eye },
   { name: "Hồ sơ", href: "/citizen/profile", icon: User },
 ];
 
