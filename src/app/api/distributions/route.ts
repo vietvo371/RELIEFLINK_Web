@@ -5,11 +5,29 @@ import { generateTxHash } from "@/lib/blockchain";
 // GET /api/distributions - Get all distributions
 export async function GET(request: NextRequest) {
   try {
+    const token = request.cookies.get("token")?.value;
+    let payload: any = null;
+    
+    if (token) {
+      const { verifyToken } = await import("@/lib/jwt");
+      payload = await verifyToken(token);
+    }
+
     const { searchParams } = new URL(request.url);
     const trang_thai = searchParams.get("trang_thai");
+    const id_tinh_nguyen_vien = searchParams.get("id_tinh_nguyen_vien");
 
     const where: any = {};
     if (trang_thai) where.trang_thai = trang_thai;
+    
+    // Filter by volunteer ID if provided (for volunteer to see only their distributions)
+    // Or if user is volunteer, only show their own distributions
+    if (id_tinh_nguyen_vien) {
+      where.id_tinh_nguyen_vien = parseInt(id_tinh_nguyen_vien);
+    } else if (payload && payload.vai_tro === "tinh_nguyen_vien") {
+      // Volunteer can only see their own distributions
+      where.id_tinh_nguyen_vien = payload.userId;
+    }
 
     const distributions = await prisma.phan_phois.findMany({
       where,
