@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { format } from "date-fns";
 import {
   Activity,
@@ -9,6 +9,8 @@ import {
   Filter,
   RefreshCcw,
   TrendingUp,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminStatsCard from "@/components/admin/AdminStatsCard";
@@ -64,7 +66,17 @@ interface DistributionRow {
 export default function AdminReportsPage() {
   const [requestPriorityFilter, setRequestPriorityFilter] = useState("all");
   const [distributionStatusFilter, setDistributionStatusFilter] = useState("all");
-  const [searchQuery, setSearchQuery] = useState(" ");
+  const [requestSearchQuery, setRequestSearchQuery] = useState("");
+  const [resourceSearchQuery, setResourceSearchQuery] = useState("");
+  const [distributionSearchQuery, setDistributionSearchQuery] = useState("");
+
+  // Pagination states
+  const [requestCurrentPage, setRequestCurrentPage] = useState(1);
+  const [resourceCurrentPage, setResourceCurrentPage] = useState(1);
+  const [distributionCurrentPage, setDistributionCurrentPage] = useState(1);
+  const requestPageSize = 10;
+  const resourcePageSize = 10;
+  const distributionPageSize = 10;
 
   const {
     data: requestsData,
@@ -106,8 +118,9 @@ export default function AdminReportsPage() {
     };
   }, [requests, distributions, resources]);
 
+  // Filter requests
   const filteredRequests = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
+    const query = requestSearchQuery.trim().toLowerCase();
     return requests.filter((req) => {
       const matchesPriority = requestPriorityFilter === "all" || req.do_uu_tien === requestPriorityFilter;
       const matchesQuery =
@@ -117,10 +130,64 @@ export default function AdminReportsPage() {
           .some((value) => value!.toLowerCase().includes(query));
       return matchesPriority && matchesQuery;
     });
-  }, [requests, requestPriorityFilter, searchQuery]);
+  }, [requests, requestPriorityFilter, requestSearchQuery]);
 
+  // Paginate requests
+  const paginatedRequests = useMemo(() => {
+    const start = (requestCurrentPage - 1) * requestPageSize;
+    return filteredRequests.slice(start, start + requestPageSize);
+  }, [filteredRequests, requestCurrentPage, requestPageSize]);
+
+  const requestTotalPages = Math.max(1, Math.ceil(filteredRequests.length / requestPageSize));
+
+  // Reset request page when filter changes
+  useEffect(() => {
+    setRequestCurrentPage(1);
+  }, [requestPriorityFilter, requestSearchQuery]);
+
+  // Ensure request page is valid
+  useEffect(() => {
+    if (requestCurrentPage > requestTotalPages) {
+      setRequestCurrentPage(requestTotalPages);
+    }
+  }, [requestCurrentPage, requestTotalPages]);
+
+  // Filter resources
+  const filteredResources = useMemo(() => {
+    const query = resourceSearchQuery.trim().toLowerCase();
+    return resources.filter((res) => {
+      const matchesQuery =
+        !query ||
+        [res.ten_nguon_luc, res.loai, res.trung_tam?.ten_trung_tam]
+          .filter(Boolean)
+          .some((value) => value!.toLowerCase().includes(query));
+      return matchesQuery;
+    });
+  }, [resources, resourceSearchQuery]);
+
+  // Paginate resources
+  const paginatedResources = useMemo(() => {
+    const start = (resourceCurrentPage - 1) * resourcePageSize;
+    return filteredResources.slice(start, start + resourcePageSize);
+  }, [filteredResources, resourceCurrentPage, resourcePageSize]);
+
+  const resourceTotalPages = Math.max(1, Math.ceil(filteredResources.length / resourcePageSize));
+
+  // Reset resource page when filter changes
+  useEffect(() => {
+    setResourceCurrentPage(1);
+  }, [resourceSearchQuery]);
+
+  // Ensure resource page is valid
+  useEffect(() => {
+    if (resourceCurrentPage > resourceTotalPages) {
+      setResourceCurrentPage(resourceTotalPages);
+    }
+  }, [resourceCurrentPage, resourceTotalPages]);
+
+  // Filter distributions
   const filteredDistributions = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
+    const query = distributionSearchQuery.trim().toLowerCase();
     return distributions.filter((dist) => {
       const matchesStatus =
         distributionStatusFilter === "all" || dist.trang_thai === distributionStatusFilter;
@@ -131,7 +198,27 @@ export default function AdminReportsPage() {
           .some((value) => value!.toLowerCase().includes(query));
       return matchesStatus && matchesQuery;
     });
-  }, [distributions, distributionStatusFilter, searchQuery]);
+  }, [distributions, distributionStatusFilter, distributionSearchQuery]);
+
+  // Paginate distributions
+  const paginatedDistributions = useMemo(() => {
+    const start = (distributionCurrentPage - 1) * distributionPageSize;
+    return filteredDistributions.slice(start, start + distributionPageSize);
+  }, [filteredDistributions, distributionCurrentPage, distributionPageSize]);
+
+  const distributionTotalPages = Math.max(1, Math.ceil(filteredDistributions.length / distributionPageSize));
+
+  // Reset distribution page when filter changes
+  useEffect(() => {
+    setDistributionCurrentPage(1);
+  }, [distributionStatusFilter, distributionSearchQuery]);
+
+  // Ensure distribution page is valid
+  useEffect(() => {
+    if (distributionCurrentPage > distributionTotalPages) {
+      setDistributionCurrentPage(distributionTotalPages);
+    }
+  }, [distributionCurrentPage, distributionTotalPages]);
 
   const requestColumns = useMemo(
     () => [
@@ -289,16 +376,20 @@ export default function AdminReportsPage() {
         />
       ) : (
         <div className="space-y-8">
+          {/* Requests Section */}
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Yêu cầu cứu trợ
+                Yêu cầu cứu trợ ({filteredRequests.length})
               </h2>
               <Button
                 size="sm"
                 variant="outline"
                 startIcon={<Filter className="h-4 w-4" />}
-                onClick={() => setRequestPriorityFilter("all")}
+                onClick={() => {
+                  setRequestPriorityFilter("all");
+                  setRequestSearchQuery("");
+                }}
               >
                 Xóa lọc
               </Button>
@@ -306,10 +397,10 @@ export default function AdminReportsPage() {
 
             <AdminDataTable
               columns={requestColumns}
-              data={filteredRequests}
+              data={paginatedRequests}
               searchable
               searchPlaceholder="Tìm theo loại yêu cầu, ưu tiên..."
-              onSearch={setSearchQuery}
+              onSearch={setRequestSearchQuery}
               filters={[
                 {
                   key: "priority",
@@ -325,42 +416,111 @@ export default function AdminReportsPage() {
               ]}
               emptyMessage="Không có yêu cầu"
             />
+
+            {/* Requests Pagination */}
+            {filteredRequests.length > requestPageSize && (
+              <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  Hiển thị {(requestCurrentPage - 1) * requestPageSize + 1} - {Math.min(requestCurrentPage * requestPageSize, filteredRequests.length)} / {filteredRequests.length} yêu cầu
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setRequestCurrentPage((prev) => Math.max(1, prev - 1))}
+                    disabled={requestCurrentPage === 1}
+                    startIcon={<ChevronLeft className="h-4 w-4" />}
+                  >
+                    Trước
+                  </Button>
+                  <span className="text-sm text-gray-600 dark:text-gray-300">
+                    Trang {requestCurrentPage} / {requestTotalPages}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setRequestCurrentPage((prev) => Math.min(requestTotalPages, prev + 1))}
+                    disabled={requestCurrentPage === requestTotalPages}
+                    endIcon={<ChevronRight className="h-4 w-4" />}
+                  >
+                    Sau
+                  </Button>
+                </div>
+              </div>
+            )}
           </section>
 
+          {/* Resources Section */}
           <section className="space-y-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Nguồn lực trong kho
+              Nguồn lực trong kho ({filteredResources.length})
             </h2>
             <AdminDataTable
               columns={resourceColumns}
-              data={resources}
+              data={paginatedResources}
               searchable
               searchPlaceholder="Tìm theo tên nguồn lực hoặc trung tâm..."
-              onSearch={setSearchQuery}
+              onSearch={setResourceSearchQuery}
               emptyMessage="Không có nguồn lực"
             />
+
+            {/* Resources Pagination */}
+            {filteredResources.length > resourcePageSize && (
+              <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  Hiển thị {(resourceCurrentPage - 1) * resourcePageSize + 1} - {Math.min(resourceCurrentPage * resourcePageSize, filteredResources.length)} / {filteredResources.length} nguồn lực
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setResourceCurrentPage((prev) => Math.max(1, prev - 1))}
+                    disabled={resourceCurrentPage === 1}
+                    startIcon={<ChevronLeft className="h-4 w-4" />}
+                  >
+                    Trước
+                  </Button>
+                  <span className="text-sm text-gray-600 dark:text-gray-300">
+                    Trang {resourceCurrentPage} / {resourceTotalPages}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setResourceCurrentPage((prev) => Math.min(resourceTotalPages, prev + 1))}
+                    disabled={resourceCurrentPage === resourceTotalPages}
+                    endIcon={<ChevronRight className="h-4 w-4" />}
+                  >
+                    Sau
+                  </Button>
+                </div>
+              </div>
+            )}
           </section>
 
+          {/* Distributions Section */}
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Phân phối gần đây
+                Phân phối gần đây ({filteredDistributions.length})
               </h2>
               <Button
                 size="sm"
                 variant="outline"
                 startIcon={<RefreshCcw className="h-4 w-4" />}
-                onClick={() => setDistributionStatusFilter("all")}
+                onClick={() => {
+                  setDistributionStatusFilter("all");
+                  setDistributionSearchQuery("");
+                }}
               >
                 Xóa lọc
               </Button>
             </div>
             <AdminDataTable
               columns={distributionColumns}
-              data={filteredDistributions}
+              data={paginatedDistributions}
               searchable
               searchPlaceholder="Tìm theo yêu cầu, nguồn lực..."
-              onSearch={setSearchQuery}
+              onSearch={setDistributionSearchQuery}
               filters={[
                 {
                   key: "status",
@@ -378,6 +538,38 @@ export default function AdminReportsPage() {
               ]}
               emptyMessage="Không có phân phối"
             />
+
+            {/* Distributions Pagination */}
+            {filteredDistributions.length > distributionPageSize && (
+              <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  Hiển thị {(distributionCurrentPage - 1) * distributionPageSize + 1} - {Math.min(distributionCurrentPage * distributionPageSize, filteredDistributions.length)} / {filteredDistributions.length} phân phối
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setDistributionCurrentPage((prev) => Math.max(1, prev - 1))}
+                    disabled={distributionCurrentPage === 1}
+                    startIcon={<ChevronLeft className="h-4 w-4" />}
+                  >
+                    Trước
+                  </Button>
+                  <span className="text-sm text-gray-600 dark:text-gray-300">
+                    Trang {distributionCurrentPage} / {distributionTotalPages}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setDistributionCurrentPage((prev) => Math.min(distributionTotalPages, prev + 1))}
+                    disabled={distributionCurrentPage === distributionTotalPages}
+                    endIcon={<ChevronRight className="h-4 w-4" />}
+                  >
+                    Sau
+                  </Button>
+                </div>
+              </div>
+            )}
           </section>
         </div>
       )}

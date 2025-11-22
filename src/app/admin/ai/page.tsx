@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { format } from "date-fns";
 import {
   Brain,
@@ -10,6 +10,8 @@ import {
   Droplets,
   Stethoscope,
   Home,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminStatsCard from "@/components/admin/AdminStatsCard";
@@ -40,6 +42,8 @@ export default function AdminAIPage() {
   const [generateMock, setGenerateMock] = useState(false);
   const [selectedPrediction, setSelectedPrediction] = useState<AIPrediction | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   const { data, isLoading, refetch } = useAIPredictions(
     selectedProvince !== "all" ? selectedProvince : undefined,
@@ -66,6 +70,26 @@ export default function AdminAIPage() {
         (disasterLabels[prediction.loai_thien_tai] || "").toLowerCase().includes(query)
     );
   }, [predictions, searchQuery]);
+
+  // Paginate predictions
+  const paginatedPredictions = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredPredictions.slice(start, start + pageSize);
+  }, [filteredPredictions, currentPage, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredPredictions.length / pageSize));
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedProvince, searchQuery]);
+
+  // Ensure page is valid
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const provinceOptions = useMemo(() => {
     const uniqueProvinces = Array.from(new Set(predictions.map((item) => item.tinh_thanh)));
@@ -297,17 +321,49 @@ export default function AdminAIPage() {
           <section className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Bảng dữ liệu dự báo
+                Bảng dữ liệu dự báo ({filteredPredictions.length})
               </h2>
             </div>
             <AdminDataTable
               columns={columns}
-              data={filteredPredictions}
+              data={paginatedPredictions}
               searchable
               searchPlaceholder="Tìm theo tỉnh thành hoặc loại thiên tai..."
               onSearch={setSearchQuery}
               emptyMessage="Không có dữ liệu dự báo"
             />
+
+            {/* Pagination */}
+            {filteredPredictions.length > pageSize && (
+              <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  Hiển thị {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filteredPredictions.length)} / {filteredPredictions.length} dự báo
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    startIcon={<ChevronLeft className="h-4 w-4" />}
+                  >
+                    Trước
+                  </Button>
+                  <span className="text-sm text-gray-600 dark:text-gray-300">
+                    Trang {currentPage} / {totalPages}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    endIcon={<ChevronRight className="h-4 w-4" />}
+                  >
+                    Sau
+                  </Button>
+                </div>
+              </div>
+            )}
           </section>
         </div>
       )}

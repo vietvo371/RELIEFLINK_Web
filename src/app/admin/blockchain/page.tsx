@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { format } from "date-fns";
 import {
   Cpu,
@@ -8,6 +8,8 @@ import {
   History,
   RefreshCcw,
   Truck,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminStatsCard from "@/components/admin/AdminStatsCard";
@@ -59,6 +61,8 @@ export default function AdminBlockchainPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [actionFilter, setActionFilter] = useState("all");
   const [selectedLog, setSelectedLog] = useState<BlockchainLog | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   const { data, isLoading, refetch } = useBlockchainLogs();
   const logs = useMemo(() => (data?.logs || []) as BlockchainLog[], [data]);
@@ -86,6 +90,26 @@ export default function AdminBlockchainPage() {
       return matchesAction && matchesQuery;
     });
   }, [logs, actionFilter, searchQuery]);
+
+  // Paginate logs
+  const paginatedLogs = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredLogs.slice(start, start + pageSize);
+  }, [filteredLogs, currentPage, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / pageSize));
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [actionFilter, searchQuery]);
+
+  // Ensure page is valid
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const stats = useMemo(() => {
     const total = logs.length;
@@ -203,38 +227,77 @@ export default function AdminBlockchainPage() {
           className="min-h-[320px]"
         />
       ) : (
-        <AdminDataTable
-          columns={columns}
-          data={filteredLogs}
-          isLoading={isLoading}
-          searchable
-          searchPlaceholder="Tìm theo hash, hành động hoặc phân phối..."
-          onSearch={setSearchQuery}
-          filters={[
-            {
-              key: "action",
-              label: "Hành động",
-              options: [
-                { value: "all", label: "Tất cả" },
-                ...actionOptions,
-              ],
-              onChange: setActionFilter,
-            },
-          ]}
-          toolbarActions={
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => refetch()}
-              startIcon={<RefreshCcw className="h-4 w-4" />}
-            >
-              Tải lại
-            </Button>
-          }
-          emptyMessage="Chưa có log blockchain"
-          emptyDescription="Các giao dịch sẽ hiển thị sau khi có phân phối được xác thực."
-          emptyIcon={<Cpu className="h-6 w-6" aria-hidden />}
-        />
+        <>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Nhật ký giao dịch ({filteredLogs.length})
+            </h2>
+          </div>
+          <AdminDataTable
+            columns={columns}
+            data={paginatedLogs}
+            isLoading={isLoading}
+            searchable
+            searchPlaceholder="Tìm theo hash, hành động hoặc phân phối..."
+            onSearch={setSearchQuery}
+            filters={[
+              {
+                key: "action",
+                label: "Hành động",
+                options: [
+                  { value: "all", label: "Tất cả" },
+                  ...actionOptions,
+                ],
+                onChange: setActionFilter,
+              },
+            ]}
+            toolbarActions={
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => refetch()}
+                startIcon={<RefreshCcw className="h-4 w-4" />}
+              >
+                Tải lại
+              </Button>
+            }
+            emptyMessage="Chưa có log blockchain"
+            emptyDescription="Các giao dịch sẽ hiển thị sau khi có phân phối được xác thực."
+            emptyIcon={<Cpu className="h-6 w-6" aria-hidden />}
+          />
+
+          {/* Pagination */}
+          {filteredLogs.length > pageSize && (
+            <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Hiển thị {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, filteredLogs.length)} / {filteredLogs.length} bản ghi
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  startIcon={<ChevronLeft className="h-4 w-4" />}
+                >
+                  Trước
+                </Button>
+                <span className="text-sm text-gray-600 dark:text-gray-300">
+                  Trang {currentPage} / {totalPages}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  endIcon={<ChevronRight className="h-4 w-4" />}
+                >
+                  Sau
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       <AdminModal

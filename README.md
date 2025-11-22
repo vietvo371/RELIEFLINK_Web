@@ -77,6 +77,10 @@ ReliefLink là một hệ thống quản lý cứu trợ khẩn cấp toàn di�
 - `/citizen/community` - Cộng đồng
 - `/citizen/profile` - Hồ sơ cá nhân
 
+## 📦 Package Manager
+
+Dự án này sử dụng **Yarn** làm package manager. Tất cả các lệnh trong hướng dẫn đều sử dụng yarn. Đảm bảo bạn đã cài đặt yarn trước khi bắt đầu.
+
 ## 🛠️ Công nghệ sử dụng
 
 ### Frontend
@@ -121,6 +125,21 @@ ReliefLink là một hệ thống quản lý cứu trợ khẩn cấp toàn di�
 
 ## 🚀 Cài đặt & Khởi chạy
 
+### Prerequisites
+- **Node.js** >= 18.x
+- **Yarn** >= 1.22.x (Package manager được sử dụng trong dự án này)
+- **PostgreSQL** >= 14.x
+
+### Cài đặt Yarn (nếu chưa có)
+```bash
+# Cài đặt Yarn globally
+npm install -g yarn
+
+# Hoặc sử dụng Corepack (khuyến nghị)
+corepack enable
+corepack prepare yarn@1.22.22 --activate
+```
+
 ### 1. Clone Repository
 ```bash
 git clone <repository-url>
@@ -129,8 +148,6 @@ cd RELIEFLINK
 
 ### 2. Cài đặt Dependencies
 ```bash
-npm install
-# hoặc
 yarn install
 ```
 
@@ -159,20 +176,35 @@ NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN="your-mapbox-token"
 ### 4. Thiết lập Database
 ```bash
 # Chạy migrations
-npm run prisma:migrate
+yarn prisma:migrate
 
 # Seed database với dữ liệu mẫu
-npm run prisma:seed
+yarn prisma:seed
 ```
 
 ### 5. Khởi chạy Development Server
 ```bash
-npm run dev
-# hoặc
 yarn dev
 ```
 
 Mở [http://localhost:3000](http://localhost:3000) để xem ứng dụng.
+
+### Quick Start (Tóm tắt)
+```bash
+# 1. Clone và cài đặt
+git clone <repository-url>
+cd RELIEFLINK
+yarn install
+
+# 2. Cấu hình .env (xem phần 3 ở trên)
+
+# 3. Thiết lập database
+yarn prisma:migrate
+yarn prisma:seed
+
+# 4. Chạy development server
+yarn dev
+```
 
 ## 📊 Dữ liệu mẫu
 
@@ -253,13 +285,13 @@ RELIEFLINK/
 ## 🔧 Scripts có sẵn
 
 ```bash
-npm run dev           # Chạy development server
-npm run build         # Build production
-npm run start         # Chạy production server
-npm run lint          # Kiểm tra code quality
-npm run prisma:generate   # Generate Prisma client
-npm run prisma:migrate    # Chạy database migrations  
-npm run prisma:seed       # Seed database với dữ liệu mẫu
+yarn dev              # Chạy development server
+yarn build            # Build production
+yarn start            # Chạy production server
+yarn lint             # Kiểm tra code quality
+yarn prisma:generate  # Generate Prisma client
+yarn prisma:migrate   # Chạy database migrations  
+yarn prisma:seed      # Seed database với dữ liệu mẫu
 ```
 
 ## 🌍 Tính năng đặc biệt
@@ -284,6 +316,30 @@ npm run prisma:seed       # Seed database với dữ liệu mẫu
 - Progressive Web App (PWA) ready
 - Offline capabilities
 
+## 🐛 Troubleshooting
+
+### Lỗi về Package Manager
+Nếu gặp lỗi khi chạy yarn, đảm bảo:
+- Đã cài đặt yarn đúng cách
+- Xóa `node_modules` và `yarn.lock` (nếu cần) và chạy lại `yarn install`
+- Kiểm tra version: `yarn --version` (nên là >= 1.22.22)
+
+### Lỗi Prisma
+```bash
+# Nếu gặp lỗi Prisma, chạy lại generate
+yarn prisma:generate
+
+# Hoặc reset database (cẩn thận: sẽ xóa dữ liệu)
+yarn prisma:migrate reset
+```
+
+### Lỗi Build
+```bash
+# Xóa cache và build lại
+rm -rf .next
+yarn build
+```
+
 ## 🤝 Đóng góp
 
 1. Fork repository
@@ -291,6 +347,8 @@ npm run prisma:seed       # Seed database với dữ liệu mẫu
 3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to branch (`git push origin feature/AmazingFeature`)
 5. Mở Pull Request
+
+**Lưu ý**: Đảm bảo sử dụng yarn cho tất cả các lệnh trong quá trình development.
 
 ## 📄 License
 
