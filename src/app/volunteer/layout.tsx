@@ -1,7 +1,40 @@
 "use client";
 
-import VolunteerSidebar from "@/components/relief/VolunteerSidebar";
-import Navbar from "@/components/relief/Navbar";
+import VolunteerSidebar from "@/layout/volunteer/VolunteerSidebar";
+import VolunteerHeader from "@/layout/volunteer/VolunteerHeader";
+import { VolunteerSidebarProvider, useVolunteerSidebar } from "@/context/VolunteerSidebarContext";
+import { ThemeProvider } from "@/context/ThemeContext";
+import VolunteerBackdrop from "@/layout/volunteer/VolunteerBackdrop";
+
+function VolunteerLayoutContent({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { isExpanded, isHovered, isMobileOpen } = useVolunteerSidebar();
+
+  // Dynamic class for main content margin based on sidebar state
+  const mainContentMargin = isMobileOpen
+    ? "ml-0"
+    : isExpanded || isHovered
+    ? "lg:ml-[290px]"
+    : "lg:ml-[90px]";
+
+  return (
+    <div className="min-h-screen xl:flex">
+      <VolunteerSidebar />
+      <VolunteerBackdrop />
+      <div
+        className={`flex-1 transition-all duration-300 ease-in-out ${mainContentMargin}`}
+      >
+        {/* Header */}
+        <VolunteerHeader />
+        {/* Page Content */}
+        <div className="p-4 mx-auto max-w-(--breakpoint-2xxl) md:p-4">{children}</div>
+      </div>
+    </div>
+  ); 
+}
 
 export default function VolunteerLayout({
   children,
@@ -9,13 +42,11 @@ export default function VolunteerLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-      <VolunteerSidebar />
-      <div className="flex-1 flex flex-col lg:ml-64">
-        <Navbar />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
-      </div>
-    </div>
+    <ThemeProvider>
+      <VolunteerSidebarProvider>
+        <VolunteerLayoutContent>{children}</VolunteerLayoutContent>
+      </VolunteerSidebarProvider>
+    </ThemeProvider>
   );
 }
 

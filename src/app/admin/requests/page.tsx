@@ -13,6 +13,12 @@ import {
   ChevronRight,
   RefreshCcw,
   Users,
+  CheckCircle,
+  XCircle,
+  Timer,
+  Target,
+  Zap,
+  AlertCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
@@ -27,14 +33,22 @@ import Select from "@/components/form/Select";
 import {
   getPriorityColor,
   getRequestStatusColor,
+  translateApprovalStatus,
   translateDistributionStatus,
+  translateMatchingStatus,
   translatePriority,
   translateRequestStatus,
 } from "@/lib/translations";
 import { useRequests, useCreateRequest, useUpdateRequest } from "@/hooks/useRequests";
+import { useApproveRequest, useTriggerAutoMatch } from "@/hooks/useWorkflow";
 import { useUsers } from "@/hooks/useUsers";
 import { useToast } from "@/context/ToastContext";
 import MapLocationPicker, { Coordinates } from "@/components/admin/MapLocationPicker";
+import { validateCoordinates, isWithinVietnamBounds } from "@/lib/locationValidation";
+import { reverseGeocode, reverseGeocodeWithCountry } from "@/lib/geocoding";
+
+// Define BadgeColor type locally since it's not exported
+type BadgeColor = "primary" | "success" | "error" | "warning" | "info" | "light" | "dark";
 
 type ReliefUser = {
   ho_va_ten?: string | null;
@@ -73,6 +87,7 @@ type ReliefRequest = {
 type CreateRequestForm = {
   loai_yeu_cau: string;
   mo_ta: string;
+  dia_chi: string; // Địa chỉ dạng text (optional)
   so_nguoi: string;
   do_uu_tien: string;
   trang_thai: string;
@@ -80,9 +95,39 @@ type CreateRequestForm = {
   kinh_do: string;
 };
 
+type ApprovalStatus = 'cho_phe_duyet' | 'da_phe_duyet' | 'tu_choi';
+type MatchingStatus = 'chua_match' | 'da_match' | 'khong_match';
+
+interface WorkflowRequest extends ReliefRequest {
+  trang_thai_phe_duyet?: ApprovalStatus;
+  id_nguoi_phe_duyet?: number;
+  thoi_gian_phe_duyet?: string;
+  ly_do_tu_choi?: string;
+  diem_uu_tien?: number;
+  khoang_cach_gan_nhat?: number;
+  id_nguon_luc_match?: number;
+  trang_thai_matching?: MatchingStatus;
+  nguoi_phe_duyet?: { ho_va_ten?: string; vai_tro?: string };
+  nguon_luc_match?: {
+    id?: number;
+    ten_nguon_luc?: string;
+    loai?: string;
+    so_luong?: number;
+    don_vi?: string;
+    trung_tam?: {
+      id?: number;
+      ten_trung_tam?: string;
+      dia_chi?: string;
+      vi_do?: number | null;
+      kinh_do?: number | null;
+    };
+  };
+}
+
 const initialCreateForm: CreateRequestForm = {
   loai_yeu_cau: "",
   mo_ta: "",
+  dia_chi: "",
   so_nguoi: "",
   do_uu_tien: "trung_binh",
   trang_thai: "cho_xu_ly",
@@ -91,7 +136,6 @@ const initialCreateForm: CreateRequestForm = {
 };
 
 const prioritySelectOptions = [
-
   { value: "cao", label: translatePriority("cao") },
   { value: "trung_binh", label: translatePriority("trung_binh") },
   { value: "thap", label: translatePriority("thap") },
@@ -104,24 +148,51 @@ const statusSelectOptions = [
   { value: "huy_bo", label: translateRequestStatus("huy_bo") },
 ];
 
+const approvalStatusOptions = [
+  { value: "cho_phe_duyet", label: "Chờ phê duyệt" },
+  { value: "da_phe_duyet", label: "Đã phê duyệt" },
+  { value: "tu_choi", label: "Đã từ chối" },
+];
+
+const matchingStatusOptions = [
+  { value: "chua_match", label: "Chưa match" },
+  { value: "da_match", label: "Đã match" },
+  { value: "khong_match", label: "Không match được" },
+];
+
 export default function AdminRequestsPage() {
   const { error: showError, success: showSuccess } = useToast();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [approvalFilter, setApprovalFilter] = useState("all");
+  const [matchingFilter, setMatchingFilter] = useState("all");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createForm, setCreateForm] = useState<CreateRequestForm>(initialCreateForm);
-  const [selectedRequest, setSelectedRequest] = useState<ReliefRequest | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<WorkflowRequest | null>(null);
   const [updatePriority, setUpdatePriority] = useState("trung_binh");
   const [updateStatus, setUpdateStatus] = useState("cho_xu_ly");
   const [createLocation, setCreateLocation] = useState<Coordinates | null>(null);
   const [updateLocation, setUpdateLocation] = useState<Coordinates | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [locationWarning, setLocationWarning] = useState<string | null>(null);
+  const [isGeocoding, setIsGeocoding] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const [updateLocationWarning, setUpdateLocationWarning] = useState<string | null>(null);
+  const [isUpdateGeocoding, setIsUpdateGeocoding] = useState(false);
+  const [updateDiaChi, setUpdateDiaChi] = useState<string>("");
   const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [selectedRequestForApproval, setSelectedRequestForApproval] = useState<WorkflowRequest | null>(null);
+  const [approvalAction, setApprovalAction] = useState<'approve' | 'reject' | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 12;
+
+  // Use real workflow hooks
+  const approveRequestMutation = useApproveRequest();
+  const triggerAutoMatchMutation = useTriggerAutoMatch();
 
   const normalizeCoord = (
     value: number | string | null | undefined,
@@ -133,15 +204,26 @@ export default function AdminRequestsPage() {
   };
 
   const requestFilters = useMemo(() => {
-    const filters: { trang_thai?: string; do_uu_tien?: string } = {};
+    const filters: { 
+      trang_thai?: string; 
+      do_uu_tien?: string;
+      trang_thai_phe_duyet?: string;
+      trang_thai_matching?: string;
+    } = {};
     if (priorityFilter !== "all" && priorityFilter) {
       filters.do_uu_tien = priorityFilter;
     }
     if (statusFilter !== "all" && statusFilter) {
       filters.trang_thai = statusFilter;
     }
+    if (approvalFilter !== "all" && approvalFilter) {
+      filters.trang_thai_phe_duyet = approvalFilter;
+    }
+    if (matchingFilter !== "all" && matchingFilter) {
+      filters.trang_thai_matching = matchingFilter;
+    }
     return Object.keys(filters).length ? filters : undefined;
-  }, [priorityFilter, statusFilter]);
+  }, [priorityFilter, statusFilter, approvalFilter, matchingFilter]);
 
   const {
     data,
@@ -151,7 +233,7 @@ export default function AdminRequestsPage() {
 
   const { data: usersData, isLoading: usersLoading } = useUsers();
   const users = useMemo<AdminUser[]>(
-    () => (usersData?.users as AdminUser[]) || [],
+    () => (usersData as any)?.users || [],
     [usersData],
   );
   const userOptions = useMemo(
@@ -175,7 +257,7 @@ export default function AdminRequestsPage() {
   }, [isCreateModalOpen, selectedUserId, userOptions]);
 
   const requests = useMemo(
-    () => ((data?.requests || []) as ReliefRequest[]),
+    () => ((data as any)?.requests || []) as WorkflowRequest[],
     [data],
   );
 
@@ -205,18 +287,28 @@ export default function AdminRequestsPage() {
     const urgent = requests.filter((req) => req.do_uu_tien === "cao").length;
     const inProgress = requests.filter((req) => req.trang_thai === "dang_xu_ly").length;
     const completed = requests.filter((req) => req.trang_thai === "hoan_thanh").length;
+    const pendingApproval = requests.filter((req) => req.trang_thai_phe_duyet === "cho_phe_duyet").length;
+    const approved = requests.filter((req) => req.trang_thai_phe_duyet === "da_phe_duyet").length;
+    const matched = requests.filter((req) => req.trang_thai_matching === "da_match").length;
+    const avgPriorityScore = requests.length > 0 
+      ? Math.round(requests.reduce((sum, req) => sum + (req.diem_uu_tien || 0), 0) / requests.length)
+      : 0;
 
     return {
       total,
       urgent,
       inProgress,
       completed,
+      pendingApproval,
+      approved,
+      matched,
+      avgPriorityScore,
     };
   }, [requests]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, priorityFilter, statusFilter]);
+  }, [searchQuery, priorityFilter, statusFilter, approvalFilter, matchingFilter]);
 
   useEffect(() => {
     if (selectedRequest) {
@@ -272,6 +364,7 @@ export default function AdminRequestsPage() {
     setCreateForm(initialCreateForm);
     setCreateLocation(null);
     setCreateError(null);
+    setLocationWarning(null);
     setSelectedUserId("");
     setIsCreateModalOpen(true);
   };
@@ -281,6 +374,7 @@ export default function AdminRequestsPage() {
     setCreateForm(initialCreateForm);
     setCreateLocation(null);
     setCreateError(null);
+    setLocationWarning(null);
     setSelectedUserId("");
   };
 
@@ -288,16 +382,72 @@ export default function AdminRequestsPage() {
     setCreateForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleCreateLocationChange = (coords: Coordinates | null) => {
+  const handleCreateLocationChange = async (coords: Coordinates | null) => {
     setCreateLocation(coords);
     setCreateForm((prev) => ({
       ...prev,
       vi_do: coords ? coords.lat.toString() : "",
       kinh_do: coords ? coords.lng.toString() : "",
     }));
+    
+    // Clear previous warnings and address
+    setLocationWarning(null);
+    
+    if (!coords) {
+      // Clear address when location is removed
+      setCreateForm((prev) => ({ ...prev, dia_chi: "" }));
+      return;
+    }
+    
+    // Check if coordinates are outside Vietnam bounds
+    const isInVietnam = isWithinVietnamBounds(coords.lat, coords.lng);
+    
+    if (!isInVietnam) {
+      setLocationWarning("⚠️ Không phải lãnh thổ Việt Nam");
+    }
+    
+    // Reverse geocode to get address and country
+    setIsGeocoding(true);
+    try {
+      const { address, country } = await reverseGeocodeWithCountry(
+        coords.lat,
+        coords.lng
+      );
+      
+      if (address) {
+        // Auto-fill address
+        setCreateForm((prev) => ({ ...prev, dia_chi: address }));
+      }
+      
+      // Check country from geocoding API (MORE ACCURATE than bounds check)
+      const countryLower = country?.toLowerCase() || "";
+      const isVietnamCountry = countryLower === "việt nam" || countryLower === "vietnam" || countryLower.includes("vietnam");
+      
+      console.log("🌍 Geocoding country result:", country, "isVietnam:", isVietnamCountry);
+      
+      // Update warning based on ACTUAL country from API
+      if (country && !isVietnamCountry) {
+        setLocationWarning(`⚠️ Không phải lãnh thổ Việt Nam (${country})`);
+      } else if (!isVietnamCountry && !isInVietnam) {
+        // Both bounds and country check failed
+        setLocationWarning("⚠️ Không phải lãnh thổ Việt Nam");
+      } else if (isVietnamCountry && !isInVietnam) {
+        // Country check says Vietnam but bounds check says no - trust country more
+        console.log("⚠️ Bounds check failed but country is Vietnam - allowing");
+        setLocationWarning(null);
+      }
+    } catch (error) {
+      console.error("Error geocoding:", error);
+      // If geocoding fails, rely on bounds check
+      if (!isInVietnam) {
+        setLocationWarning("⚠️ Không phải lãnh thổ Việt Nam");
+      }
+    } finally {
+      setIsGeocoding(false);
+    }
   };
 
-  const handleCreateRequest = () => {
+  const handleCreateRequest = async () => {
     const trimmedType = createForm.loai_yeu_cau.trim();
     if (!trimmedType) {
       showError("Vui lòng nhập loại yêu cầu.");
@@ -322,6 +472,57 @@ export default function AdminRequestsPage() {
       setCreateError("Vui lòng chọn vị trí trên bản đồ.");
       return;
     }
+
+    // Validate coordinates using reverse geocoding API (MOST ACCURATE)
+    console.log("🔍 Validating create location:", createLocation.lat, createLocation.lng);
+    
+    // First check bounds (quick validation)
+    const coordValidation = validateCoordinates(
+      createLocation.lat,
+      createLocation.lng,
+      true // Yêu cầu tọa độ trong phạm vi Việt Nam
+    );
+    
+    console.log("📊 Create validation result:", coordValidation);
+    
+    if (!coordValidation.isValid) {
+      console.log("❌ Create validation failed:", coordValidation.error);
+      showError(coordValidation.error || "Tọa độ không hợp lệ.");
+      setCreateError(coordValidation.error || "Tọa độ không hợp lệ.");
+      return;
+    }
+    
+    // CRITICAL: Use reverse geocoding to check ACTUAL country
+    try {
+      const { reverseGeocodeWithCountry } = await import("@/lib/geocoding");
+      const { country } = await reverseGeocodeWithCountry(createLocation.lat, createLocation.lng);
+      
+      const countryLower = country?.toLowerCase() || "";
+      const isVietnamCountry = countryLower === "việt nam" || countryLower === "vietnam" || countryLower.includes("vietnam");
+      
+      console.log("🌍 Geocoding country result:", country, "isVietnam:", isVietnamCountry);
+      
+      if (!isVietnamCountry) {
+        console.log("🚫 BLOCKING: Country is not Vietnam:", country);
+        showError(`Chỉ chấp nhận yêu cầu trong lãnh thổ Việt Nam. Vị trí này thuộc: ${country || "Không xác định"}.`);
+        setCreateError(`Chỉ chấp nhận yêu cầu trong lãnh thổ Việt Nam. Vị trí này thuộc: ${country || "Không xác định"}.`);
+        return;
+      }
+    } catch (error) {
+      console.error("❌ Error checking country:", error);
+      // If geocoding fails, fall back to bounds check
+      const isInVietnam = isWithinVietnamBounds(createLocation.lat, createLocation.lng);
+      if (!isInVietnam) {
+        console.log("🚫 BLOCKING: Location outside Vietnam bounds (geocoding failed)");
+        showError("Chỉ chấp nhận yêu cầu trong lãnh thổ Việt Nam. Vui lòng chọn vị trí khác.");
+        setCreateError("Chỉ chấp nhận yêu cầu trong lãnh thổ Việt Nam. Vui lòng chọn vị trí khác.");
+        return;
+      }
+      // If bounds check passes but geocoding failed, warn but allow (to avoid blocking valid requests)
+      console.log("⚠️ Geocoding failed but bounds check passed - allowing with warning");
+    }
+    
+    console.log("✅ Create validation passed - location is in Vietnam");
     if (!selectedUserId) {
       showError("Vui lòng chọn người gửi yêu cầu.");
       setCreateError("Vui lòng chọn người gửi yêu cầu.");
@@ -333,6 +534,7 @@ export default function AdminRequestsPage() {
       {
         loai_yeu_cau: trimmedType,
         mo_ta: createForm.mo_ta.trim() || null,
+        dia_chi: createForm.dia_chi.trim() || null,
         so_nguoi: peopleCount,
         do_uu_tien: createForm.do_uu_tien,
         trang_thai: createForm.trang_thai,
@@ -342,13 +544,12 @@ export default function AdminRequestsPage() {
       },
       {
         onSuccess: () => {
-          // Hiển thị toast trước để đảm bảo nó được render
           showSuccess("Tạo yêu cầu cứu trợ thành công!");
-          // Sau đó mới đóng modal và reset form
           setTimeout(() => {
             setCreateForm(initialCreateForm);
             setCreateLocation(null);
             setCreateError(null);
+            setLocationWarning(null);
             setSelectedUserId("");
             setIsCreateModalOpen(false);
           }, 100);
@@ -363,9 +564,11 @@ export default function AdminRequestsPage() {
     );
   };
 
-  const handleOpenDetail = (request: ReliefRequest) => {
+  const handleOpenDetail = (request: WorkflowRequest) => {
     setSelectedRequest(request);
     setUpdateError(null);
+    setUpdateLocationWarning(null);
+    setUpdateDiaChi((request as any).dia_chi || "");
     if (
       request.vi_do !== null &&
       request.vi_do !== undefined &&
@@ -376,6 +579,10 @@ export default function AdminRequestsPage() {
       const lng = Number(request.kinh_do);
       if (Number.isFinite(lat) && Number.isFinite(lng)) {
         setUpdateLocation({ lat, lng });
+        // Check if current location is in Vietnam
+        if (!isWithinVietnamBounds(lat, lng)) {
+          setUpdateLocationWarning("⚠️ Không phải lãnh thổ Việt Nam");
+        }
       } else {
         setUpdateLocation(null);
       }
@@ -388,13 +595,53 @@ export default function AdminRequestsPage() {
     setSelectedRequest(null);
     setUpdateLocation(null);
     setUpdateError(null);
+    setUpdateLocationWarning(null);
+    setUpdateDiaChi("");
   };
 
-  const handleUpdateLocationChange = (coords: Coordinates | null) => {
+  const handleUpdateLocationChange = async (coords: Coordinates | null) => {
     setUpdateLocation(coords);
+    setUpdateLocationWarning(null);
+    
+    if (!coords) {
+      setUpdateDiaChi("");
+      return;
+    }
+    
+    // Check if coordinates are outside Vietnam bounds
+    const isInVietnam = isWithinVietnamBounds(coords.lat, coords.lng);
+    
+    if (!isInVietnam) {
+      setUpdateLocationWarning("⚠️ Không phải lãnh thổ Việt Nam");
+    }
+    
+    // Reverse geocode to get address
+    setIsUpdateGeocoding(true);
+    try {
+      const { address, country } = await reverseGeocodeWithCountry(
+        coords.lat,
+        coords.lng
+      );
+      
+      if (address) {
+        // Auto-fill address
+        setUpdateDiaChi(address);
+      }
+      
+      // Update warning if country is not Vietnam
+      if (country && country.toLowerCase() !== "việt nam" && country.toLowerCase() !== "vietnam") {
+        setUpdateLocationWarning(`⚠️ Không phải lãnh thổ Việt Nam (${country})`);
+      } else if (!isInVietnam) {
+        setUpdateLocationWarning("⚠️ Không phải lãnh thổ Việt Nam");
+      }
+    } catch (error) {
+      console.error("Error geocoding:", error);
+    } finally {
+      setIsUpdateGeocoding(false);
+    }
   };
 
-  const handleUpdateRequest = () => {
+  const handleUpdateRequest = async () => {
     if (!selectedRequest) return;
 
     const originalLat = normalizeCoord(selectedRequest.vi_do);
@@ -404,6 +651,72 @@ export default function AdminRequestsPage() {
 
     const locationChanged =
       originalLat !== updatedLat || originalLng !== updatedLng;
+
+    // ALWAYS validate location must be in Vietnam
+    // If location changed, validate new location. If not changed, validate existing location.
+    const locationToValidate = updateLocation ?? 
+      (selectedRequest.vi_do !== null && selectedRequest.vi_do !== undefined && 
+       selectedRequest.kinh_do !== null && selectedRequest.kinh_do !== undefined
+        ? { lat: Number(selectedRequest.vi_do), lng: Number(selectedRequest.kinh_do) }
+        : null);
+    
+    console.log("🔍 Validating update location:", locationToValidate, "original:", selectedRequest.vi_do, selectedRequest.kinh_do);
+    
+    // Location is REQUIRED and must be in Vietnam
+    if (!locationToValidate) {
+      console.log("❌ Update validation failed: No location");
+      showError("Yêu cầu phải có vị trí hợp lệ trong lãnh thổ Việt Nam.");
+      setUpdateError("Yêu cầu phải có vị trí hợp lệ trong lãnh thổ Việt Nam.");
+      return;
+    }
+    
+    // Validate coordinates using reverse geocoding API (MOST ACCURATE)
+    const coordValidation = validateCoordinates(
+      locationToValidate.lat,
+      locationToValidate.lng,
+      true // Yêu cầu tọa độ trong phạm vi Việt Nam
+    );
+    
+    console.log("📊 Update validation result:", coordValidation);
+    
+    if (!coordValidation.isValid) {
+      console.log("❌ Update validation failed:", coordValidation.error);
+      showError(coordValidation.error || "Tọa độ không hợp lệ.");
+      setUpdateError(coordValidation.error || "Tọa độ không hợp lệ.");
+      return;
+    }
+    
+    // CRITICAL: Use reverse geocoding to check ACTUAL country
+    try {
+      const { reverseGeocodeWithCountry } = await import("@/lib/geocoding");
+      const { country } = await reverseGeocodeWithCountry(locationToValidate.lat, locationToValidate.lng);
+      
+      const countryLower = country?.toLowerCase() || "";
+      const isVietnamCountry = countryLower === "việt nam" || countryLower === "vietnam" || countryLower.includes("vietnam");
+      
+      console.log("🌍 Geocoding country result:", country, "isVietnam:", isVietnamCountry);
+      
+      if (!isVietnamCountry) {
+        console.log("🚫 BLOCKING: Country is not Vietnam:", country);
+        showError(`Chỉ chấp nhận yêu cầu trong lãnh thổ Việt Nam. Vị trí này thuộc: ${country || "Không xác định"}.`);
+        setUpdateError(`Chỉ chấp nhận yêu cầu trong lãnh thổ Việt Nam. Vị trí này thuộc: ${country || "Không xác định"}.`);
+        return;
+      }
+    } catch (error) {
+      console.error("❌ Error checking country:", error);
+      // If geocoding fails, fall back to bounds check
+      const isInVietnam = isWithinVietnamBounds(locationToValidate.lat, locationToValidate.lng);
+      if (!isInVietnam) {
+        console.log("🚫 BLOCKING: Location outside Vietnam bounds (geocoding failed)");
+        showError("Chỉ chấp nhận yêu cầu trong lãnh thổ Việt Nam. Vui lòng chọn vị trí khác.");
+        setUpdateError("Chỉ chấp nhận yêu cầu trong lãnh thổ Việt Nam. Vui lòng chọn vị trí khác.");
+        return;
+      }
+      // If bounds check passes but geocoding failed, warn but allow (to avoid blocking valid requests)
+      console.log("⚠️ Geocoding failed but bounds check passed - allowing with warning");
+    }
+    
+    console.log("✅ Update validation passed - location is in Vietnam");
 
     const hasChanges =
       updatePriority !== selectedRequest.do_uu_tien ||
@@ -415,12 +728,34 @@ export default function AdminRequestsPage() {
       return;
     }
 
+    // Always send location (either updated or existing) to ensure backend validation
+    const finalLocation = updateLocation ?? 
+      (selectedRequest.vi_do !== null && selectedRequest.vi_do !== undefined && 
+       selectedRequest.kinh_do !== null && selectedRequest.kinh_do !== undefined
+        ? { lat: Number(selectedRequest.vi_do), lng: Number(selectedRequest.kinh_do) }
+        : null);
+
+    // Location is REQUIRED - must have valid location
+    if (!finalLocation) {
+      showError("Yêu cầu phải có vị trí hợp lệ trong lãnh thổ Việt Nam.");
+      setUpdateError("Yêu cầu phải có vị trí hợp lệ trong lãnh thổ Việt Nam.");
+      return;
+    }
+
+    // Final validation before sending to API
+    if (!isWithinVietnamBounds(finalLocation.lat, finalLocation.lng)) {
+      showError("Chỉ chấp nhận yêu cầu trong lãnh thổ Việt Nam. Vui lòng chọn vị trí khác.");
+      setUpdateError("Chỉ chấp nhận yêu cầu trong lãnh thổ Việt Nam. Vui lòng chọn vị trí khác.");
+      return;
+    }
+
     updateRequestMutation.mutate(
       {
         do_uu_tien: updatePriority,
         trang_thai: updateStatus,
-        vi_do: updateLocation ? updateLocation.lat : null,
-        kinh_do: updateLocation ? updateLocation.lng : null,
+        vi_do: finalLocation.lat,
+        kinh_do: finalLocation.lng,
+        dia_chi: updateDiaChi.trim() || null,
       },
       {
         onSuccess: (data) => {
@@ -438,6 +773,161 @@ export default function AdminRequestsPage() {
         },
       },
     );
+  };
+
+  const handleOpenApprovalModal = (request: WorkflowRequest, action: 'approve' | 'reject') => {
+    // Kiểm tra request đã được xử lý chưa
+    if (request.trang_thai_phe_duyet && request.trang_thai_phe_duyet !== 'cho_phe_duyet') {
+      const statusText = translateApprovalStatus(request.trang_thai_phe_duyet);
+      showError(`Yêu cầu này đã ${statusText.toLowerCase()} rồi.`);
+      return;
+    }
+    
+    setSelectedRequestForApproval(request);
+    setApprovalAction(action);
+    setRejectionReason("");
+    setIsApprovalModalOpen(true);
+  };
+
+  const handleCloseApprovalModal = () => {
+    setSelectedRequestForApproval(null);
+    setApprovalAction(null);
+    setRejectionReason("");
+    setIsApprovalModalOpen(false);
+  };
+
+  const handleApprovalSubmit = async () => {
+    if (!selectedRequestForApproval || !approvalAction) return;
+
+    // Kiểm tra request đã được xử lý chưa
+    if (selectedRequestForApproval.trang_thai_phe_duyet !== 'cho_phe_duyet' && 
+        selectedRequestForApproval.trang_thai_phe_duyet !== undefined) {
+      showError("Yêu cầu này đã được xử lý rồi. Vui lòng tải lại trang.");
+      handleCloseApprovalModal();
+      await refetch();
+      return;
+    }
+
+    try {
+      if (approvalAction === 'approve') {
+        const result = await approveRequestMutation.mutateAsync({
+          requestId: selectedRequestForApproval.id,
+          data: { approved: true }
+        });
+        
+        // Hiển thị message từ API nếu có
+        const message = result?.message || "Đã phê duyệt yêu cầu và kích hoạt auto-matching!";
+        showSuccess(message);
+      } else {
+        if (!rejectionReason.trim()) {
+          showError("Vui lòng nhập lý do từ chối");
+          return;
+        }
+        
+        const result = await approveRequestMutation.mutateAsync({
+          requestId: selectedRequestForApproval.id,
+          data: { approved: false, reason: rejectionReason.trim() }
+        });
+        
+        // Hiển thị message từ API nếu có
+        const message = result?.message || "Đã từ chối yêu cầu";
+        showSuccess(message);
+      }
+      
+      // Đợi refetch xong trước khi đóng modal để đảm bảo data được cập nhật
+      await refetch();
+      
+      // Đóng modal sau khi data đã được refresh
+      handleCloseApprovalModal();
+      
+    } catch (error: any) {
+      // Xử lý lỗi chi tiết hơn
+      let errorMessage = 'Có lỗi xảy ra khi xử lý phê duyệt';
+      
+      if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      showError(errorMessage);
+      // Không đóng modal khi có lỗi để user có thể thử lại
+    }
+  };
+
+  const handleTriggerAutoMatch = async (requestId: number) => {
+    if (!requestId) {
+      showError("Không tìm thấy ID yêu cầu");
+      return;
+    }
+
+    try {
+      const result = await triggerAutoMatchMutation.mutateAsync(requestId);
+      
+      // Hiển thị message từ API
+      const message = result?.message || "Đã kích hoạt auto-matching!";
+      
+      if (result?.autoMatch) {
+        showSuccess(message);
+      } else {
+        // Không có match - hiển thị warning thay vì error
+        showError(message || "Không tìm thấy nguồn lực phù hợp");
+      }
+      
+      await refetch();
+    } catch (error: any) {
+      console.error('Auto-match error:', error);
+      
+      let errorMessage = "Có lỗi xảy ra khi kích hoạt auto-matching";
+      if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      showError(errorMessage);
+    }
+  };
+
+  const getPriorityScoreColor = (score?: number): BadgeColor => {
+    if (!score) return "info";
+    if (score >= 80) return "error";
+    if (score >= 60) return "warning";
+    if (score >= 40) return "warning";
+    return "success";
+  };
+
+  const getApprovalStatusColor = (status?: ApprovalStatus): BadgeColor => {
+    switch (status) {
+      case 'da_phe_duyet': return 'success';
+      case 'tu_choi': return 'error';
+      case 'cho_phe_duyet':
+      default: return 'warning';
+    }
+  };
+
+  const getMatchingStatusColor = (status?: MatchingStatus): BadgeColor => {
+    switch (status) {
+      case 'da_match': return 'success';
+      case 'khong_match': return 'error';
+      case 'chua_match':
+      default: return 'info';
+    }
+  };
+
+  const getBadgeColorFromString = (color: string): BadgeColor => {
+    const colorMap: Record<string, BadgeColor> = {
+      'green': 'success',
+      'red': 'error',
+      'orange': 'warning',
+      'yellow': 'warning',
+      'blue': 'primary',
+      'gray': 'light',
+      'grey': 'light',
+    };
+    return colorMap[color] || 'info';
   };
 
   const originalLatForComparison = normalizeCoord(selectedRequest?.vi_do);
@@ -482,7 +972,7 @@ export default function AdminRequestsPage() {
       {
         key: "loai_yeu_cau",
         label: "Loại yêu cầu",
-        render: (_: string, row: ReliefRequest) => (
+        render: (_: string, row: WorkflowRequest) => (
           <div className="max-w-xs space-y-1">
             <p className="font-medium text-gray-900 dark:text-white">
               {row.loai_yeu_cau}
@@ -498,7 +988,7 @@ export default function AdminRequestsPage() {
       {
         key: "nguoi_dung",
         label: "Người gửi",
-        render: (_: ReliefUser, row: ReliefRequest) => (
+        render: (_: ReliefUser, row: WorkflowRequest) => (
           <div className="space-y-1">
             <p className="font-medium text-gray-900 dark:text-white">
               {row.nguoi_dung?.ho_va_ten || "Không xác định"}
@@ -510,19 +1000,90 @@ export default function AdminRequestsPage() {
         ),
       },
       {
-        key: "do_uu_tien",
-        label: "Ưu tiên",
-        render: (value: string) => (
-          <Badge color={getPriorityColor(value)} size="sm">
-            {translatePriority(value)}
-          </Badge>
+        key: "diem_uu_tien",
+        label: "Điểm ưu tiên",
+        render: (value: number, row: WorkflowRequest) => (
+          <div className="space-y-1">
+            <Badge color={getPriorityScoreColor(value)} size="sm">
+              {value || 0}/100
+            </Badge>
+            <Badge color={getBadgeColorFromString(getPriorityColor(row.do_uu_tien))} size="sm">
+              {translatePriority(row.do_uu_tien)}
+            </Badge>
+          </div>
+        ),
+      },
+      {
+        key: "trang_thai_phe_duyet",
+        label: "Phê duyệt",
+        render: (value: ApprovalStatus, row: WorkflowRequest) => (
+          <div className="space-y-1">
+            <Badge color={getApprovalStatusColor(value)} size="sm">
+              {translateApprovalStatus(value)}
+            </Badge>
+            {(value === 'cho_phe_duyet' || !value) && (
+              <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => handleOpenApprovalModal(row, 'approve')}
+                  disabled={approveRequestMutation.isPending || row.trang_thai_phe_duyet !== 'cho_phe_duyet'}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md border border-green-300 text-green-700 bg-white hover:bg-green-50 hover:border-green-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-gray-800 dark:border-green-700 dark:text-green-400 dark:hover:bg-green-900/20 dark:hover:border-green-600"
+                >
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  <span>Duyệt</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOpenApprovalModal(row, 'reject')}
+                  disabled={approveRequestMutation.isPending || row.trang_thai_phe_duyet !== 'cho_phe_duyet'}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md border border-red-300 text-red-700 bg-white hover:bg-red-50 hover:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:bg-gray-800 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:border-red-600"
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                  <span>Từ chối</span>
+                </button>
+              </div>
+            )}
+          </div>
+        ),
+      },
+      {
+        key: "trang_thai_matching",
+        label: "Auto-Match",
+        render: (value: MatchingStatus, row: WorkflowRequest) => (
+          <div className="space-y-1">
+            <Badge color={getMatchingStatusColor(value)} size="sm">
+              {value === 'da_match' ? 'Matched' : 
+               value === 'khong_match' ? 'No match' : 'Pending'}
+            </Badge>
+            {row.nguon_luc_match && (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {row.nguon_luc_match.ten_nguon_luc}
+              </p>
+            )}
+            {row.khoang_cach_gan_nhat && typeof row.khoang_cach_gan_nhat === 'number' && (
+              <p className="text-xs text-blue-600 dark:text-blue-400">
+                {row.khoang_cach_gan_nhat.toFixed(1)}km
+              </p>
+            )}
+            {row.trang_thai_phe_duyet === 'da_phe_duyet' && value === 'chua_match' && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleTriggerAutoMatch(row.id)}
+                className="text-blue-600 hover:bg-blue-50"
+                disabled={triggerAutoMatchMutation.isPending}
+              >
+                Re-match
+              </Button>
+            )}
+          </div>
         ),
       },
       {
         key: "trang_thai",
         label: "Trạng thái",
         render: (value: string) => (
-          <Badge color={getRequestStatusColor(value)} size="sm">
+          <Badge color={getBadgeColorFromString(getRequestStatusColor(value))} size="sm">
             {translateRequestStatus(value)}
           </Badge>
         ),
@@ -533,15 +1094,6 @@ export default function AdminRequestsPage() {
         render: (value: number) => (
           <span className="text-sm text-gray-700 dark:text-gray-200">
             {value?.toLocaleString?.() ?? value}
-          </span>
-        ),
-      },
-      {
-        key: "phan_phois",
-        label: "Phân phối",
-        render: (value: ReliefDistribution[] = []) => (
-          <span className="text-sm text-gray-700 dark:text-gray-200">
-            {value.length}
           </span>
         ),
       },
@@ -557,7 +1109,7 @@ export default function AdminRequestsPage() {
       {
         key: "actions",
         label: "Thao tác",
-        render: (_: unknown, row: ReliefRequest) => (
+        render: (_: unknown, row: WorkflowRequest) => (
           <Button
             size="sm"
             variant="outline"
@@ -569,26 +1121,47 @@ export default function AdminRequestsPage() {
         ),
       },
     ],
-    [],
+    [approveRequestMutation.isPending, triggerAutoMatchMutation.isPending],
   );
 
   return (
     <div className="space-y-6">
       <AdminPageHeader
         title="Quản lý yêu cầu cứu trợ"
-        description="Theo dõi, cập nhật và xử lý các yêu cầu cứu trợ trong hệ thống"
+        description="Phê duyệt, auto-matching và theo dõi các yêu cầu cứu trợ trong hệ thống"
         showAddButton
         addButtonText="Thêm yêu cầu"
         onAdd={handleOpenCreateModal}
       />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4 xl:grid-cols-8">
         <AdminStatsCard
           title="Tổng yêu cầu"
           value={stats.total}
           icon={LifeBuoy}
           color="blue"
-          description="Tất cả yêu cầu đang được theo dõi"
+          description="Tất cả yêu cầu đang theo dõi"
+        />
+        <AdminStatsCard
+          title="Chờ phê duyệt"
+          value={stats.pendingApproval}
+          icon={Timer}
+          color="orange"
+          description="Cần xử lý ngay"
+        />
+        <AdminStatsCard
+          title="Đã phê duyệt"
+          value={stats.approved}
+          icon={CheckCircle}
+          color="green"
+          description="Đã được chấp thuận"
+        />
+        <AdminStatsCard
+          title="Auto-matched"
+          value={stats.matched}
+          icon={Target}
+          color="purple"
+          description="Đã match nguồn lực"
         />
         <AdminStatsCard
           title="Ưu tiên cao"
@@ -601,15 +1174,22 @@ export default function AdminRequestsPage() {
           title="Đang xử lý"
           value={stats.inProgress}
           icon={Clock}
-          color="orange"
-          description="Đang điều phối nguồn lực"
+          color="yellow"
+          description="Đang điều phối"
+        />
+        <AdminStatsCard
+          title="Điểm ưu tiên TB"
+          value={stats.avgPriorityScore}
+          icon={Zap}
+          color="indigo"
+          description="Trung bình hệ thống"
         />
         <AdminStatsCard
           title="Hoàn thành"
           value={stats.completed}
           icon={CheckCircle2}
           color="green"
-          description="Đã giải quyết thành công"
+          description="Đã giải quyết"
         />
       </div>
 
@@ -625,9 +1205,27 @@ export default function AdminRequestsPage() {
           data={paginatedRequests}
           isLoading={isLoading}
           searchable
-          searchPlaceholder="Tìm kiếm theo loại yêu cầu, người gửi hoặc mô tả..."
+          searchPlaceholder="Tìm kiếm theo yêu cầu, người gửi, mô tả..."
           onSearch={setSearchQuery}
           filters={[
+            {
+              key: "approval",
+              label: "Lọc theo phê duyệt",
+              options: [
+                { value: "all", label: "Tất cả trạng thái phê duyệt" },
+                ...approvalStatusOptions,
+              ],
+              onChange: (value) => setApprovalFilter(value === "all" ? "all" : value),
+            },
+            {
+              key: "matching",
+              label: "Lọc theo matching",
+              options: [
+                { value: "all", label: "Tất cả trạng thái matching" },
+                ...matchingStatusOptions,
+              ],
+              onChange: (value) => setMatchingFilter(value === "all" ? "all" : value),
+            },
             {
               key: "priority",
               label: "Lọc theo ưu tiên",
@@ -693,6 +1291,101 @@ export default function AdminRequestsPage() {
           </div>
         </div>
       )}
+
+      <AdminModal
+        isOpen={isApprovalModalOpen}
+        onClose={handleCloseApprovalModal}
+        title={
+          approvalAction === 'approve' 
+            ? `Phê duyệt yêu cầu #${selectedRequestForApproval?.id}`
+            : `Từ chối yêu cầu #${selectedRequestForApproval?.id}`
+        }
+        description={
+          approvalAction === 'approve'
+            ? "Phê duyệt yêu cầu sẽ kích hoạt auto-matching với nguồn lực phù hợp"
+            : "Vui lòng nhập lý do từ chối để thông báo cho người gửi"
+        }
+        size="md"
+        footer={
+          <>
+            <Button 
+              variant="outline" 
+              onClick={handleCloseApprovalModal}
+              disabled={approveRequestMutation.isPending}
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={handleApprovalSubmit}
+              disabled={
+                approveRequestMutation.isPending || 
+                !selectedRequestForApproval ||
+                (approvalAction === 'reject' && !rejectionReason.trim())
+              }
+              variant={approvalAction === 'approve' ? 'primary' : 'outline'}
+              className={approvalAction === 'reject' ? 'text-red-600 border-red-600 hover:bg-red-50' : ''}
+            >
+              {approveRequestMutation.isPending 
+                ? "Đang xử lý..." 
+                : approvalAction === 'approve' ? "Phê duyệt" : "Từ chối"}
+            </Button>
+          </>
+        }
+      >
+        {selectedRequestForApproval && (
+          <div className="space-y-4">
+            <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-800/50">
+              <h4 className="font-medium text-gray-900 dark:text-white">
+                {selectedRequestForApproval.loai_yeu_cau}
+              </h4>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                Người gửi: {selectedRequestForApproval.nguoi_dung?.ho_va_ten || "Không xác định"}
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Số người ảnh hưởng: {selectedRequestForApproval.so_nguoi.toLocaleString()}
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Điểm ưu tiên: {selectedRequestForApproval.diem_uu_tien || 0}/100
+              </p>
+            </div>
+
+            {approvalAction === 'reject' && (
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Lý do từ chối *
+                </label>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  rows={4}
+                  className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2 text-sm text-gray-800 outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                  placeholder="Nhập lý do từ chối yêu cầu này..."
+                  required
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Lý do này sẽ được gửi thông báo cho người tạo yêu cầu
+                </p>
+              </div>
+            )}
+
+            {approvalAction === 'approve' && (
+              <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <div className="text-sm text-green-800 dark:text-green-200">
+                    <p className="font-medium">Phê duyệt sẽ kích hoạt:</p>
+                    <ul className="mt-1 space-y-1 text-sm">
+                      <li>Auto-matching với nguồn lực phù hợp</li>
+                      <li>Thông báo cho người gửi yêu cầu</li>
+                      <li>Cập nhật trạng thái thành "Đã phê duyệt"</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </AdminModal>
 
       <AdminModal
         isOpen={isCreateModalOpen}
@@ -793,6 +1486,30 @@ export default function AdminRequestsPage() {
           </div>
           <div className="md:col-span-2">
             <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Địa chỉ <span className="text-xs text-gray-500 dark:text-gray-400">(tùy chọn - tự động điền khi chọn vị trí)</span>
+            </label>
+            <div className="relative">
+              <Input
+                value={createForm.dia_chi}
+                onChange={(e) => handleCreateFormChange("dia_chi", e.target.value)}
+                placeholder="Sẽ tự động điền khi bạn chọn vị trí trên bản đồ..."
+                disabled={isGeocoding}
+                className={isGeocoding ? "opacity-50" : ""}
+              />
+              {isGeocoding && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <RefreshCcw className="h-4 w-4 animate-spin text-gray-400" />
+                </div>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {isGeocoding 
+                ? "Đang tìm địa chỉ..." 
+                : "Địa chỉ sẽ tự động điền khi bạn chọn vị trí trên bản đồ. Bạn có thể chỉnh sửa nếu cần."}
+            </p>
+          </div>
+          <div className="md:col-span-2">
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
               Mô tả chi tiết
             </label>
             <textarea
@@ -817,20 +1534,38 @@ export default function AdminRequestsPage() {
               onChange={handleCreateLocationChange}
               isActive={isCreateModalOpen}
             />
-            <div className="flex flex-wrap items-center justify-between text-xs text-gray-600 dark:text-gray-400">
-              <span>
-                {createLocation
-                  ? `Vị trí đã chọn: ${createLocation.lat.toFixed(4)}, ${createLocation.lng.toFixed(4)}`
-                  : "Chưa chọn vị trí"}
-              </span>
-              {createLocation && (
-                <button
-                  type="button"
-                  onClick={() => handleCreateLocationChange(null)}
-                  className="text-xs font-medium text-red-500 hover:underline"
-                >
-                  Xóa vị trí
-                </button>
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+                <span>
+                  {createLocation
+                    ? `Vị trí đã chọn: ${createLocation.lat.toFixed(4)}, ${createLocation.lng.toFixed(4)}`
+                    : "Chưa chọn vị trí"}
+                </span>
+                {createLocation && (
+                  <button
+                    type="button"
+                    onClick={() => handleCreateLocationChange(null)}
+                    className="text-xs font-medium text-red-500 hover:underline"
+                  >
+                    Xóa vị trí
+                  </button>
+                )}
+              </div>
+              {locationWarning && (
+                <div className="rounded-lg border border-yellow-300 bg-yellow-50 px-3 py-2 text-xs text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-200">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    <p>{locationWarning}</p>
+                  </div>
+                </div>
+              )}
+              {createLocation && !locationWarning && !isGeocoding && (
+                <div className="rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-xs text-green-800 dark:border-green-700 dark:bg-green-900/20 dark:text-green-200">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    <p>✓ Tọa độ nằm trong phạm vi Việt Nam</p>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -874,12 +1609,25 @@ export default function AdminRequestsPage() {
               </div>
             )}
             <div className="flex flex-wrap items-center gap-2">
-              <Badge color={getPriorityColor(selectedRequest.do_uu_tien)} size="sm">
+              <Badge color={getBadgeColorFromString(getPriorityColor(selectedRequest.do_uu_tien))} size="sm">
                 Ưu tiên: {translatePriority(selectedRequest.do_uu_tien)}
               </Badge>
-              <Badge color={getRequestStatusColor(selectedRequest.trang_thai)} size="sm">
+              <Badge color={getBadgeColorFromString(getRequestStatusColor(selectedRequest.trang_thai))} size="sm">
                 Trạng thái: {translateRequestStatus(selectedRequest.trang_thai)}
               </Badge>
+              <Badge color={getApprovalStatusColor(selectedRequest.trang_thai_phe_duyet)} size="sm">
+                {translateApprovalStatus(selectedRequest.trang_thai_phe_duyet)}
+              </Badge>
+              {selectedRequest.diem_uu_tien && (
+                <Badge color={getPriorityScoreColor(selectedRequest.diem_uu_tien)} size="sm">
+                  Điểm: {selectedRequest.diem_uu_tien}/100
+                </Badge>
+              )}
+              {selectedRequest.trang_thai_matching && (
+                <Badge color={getMatchingStatusColor(selectedRequest.trang_thai_matching)} size="sm">
+                  {translateMatchingStatus(selectedRequest.trang_thai_matching)}
+                </Badge>
+              )}
               <Badge color="info" size="sm">
                 {selectedRequest.phan_phois?.length || 0} phân phối liên quan
               </Badge>
@@ -938,6 +1686,16 @@ export default function AdminRequestsPage() {
                         {selectedRequest.so_nguoi.toLocaleString()}
                       </p>
                     </div>
+                    {(selectedRequest as any).dia_chi && (
+                      <div className="md:col-span-2">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Địa chỉ
+                        </p>
+                        <p className="mt-1 text-sm text-gray-800 dark:text-gray-200">
+                          {(selectedRequest as any).dia_chi}
+                        </p>
+                      </div>
+                    )}
                     <div>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         Ngày tạo
@@ -971,26 +1729,68 @@ export default function AdminRequestsPage() {
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                     Vị trí trên bản đồ
                   </h3>
-                  <div className="mt-4 space-y-3">
+                  <div className="mt-4 space-y-4">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Địa chỉ <span className="text-xs text-gray-500 dark:text-gray-400">(tự động điền khi chọn vị trí)</span>
+                      </label>
+                      <div className="relative">
+                        <Input
+                          value={updateDiaChi}
+                          onChange={(e) => setUpdateDiaChi(e.target.value)}
+                          placeholder="Sẽ tự động điền khi bạn chọn vị trí trên bản đồ..."
+                          disabled={isUpdateGeocoding}
+                          className={isUpdateGeocoding ? "opacity-50" : ""}
+                        />
+                        {isUpdateGeocoding && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <RefreshCcw className="h-4 w-4 animate-spin text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        {isUpdateGeocoding 
+                          ? "Đang tìm địa chỉ..." 
+                          : "Địa chỉ sẽ tự động điền khi bạn chọn vị trí trên bản đồ. Bạn có thể chỉnh sửa nếu cần."}
+                      </p>
+                    </div>
                     <MapLocationPicker
                       value={updateLocation}
                       onChange={handleUpdateLocationChange}
                       isActive={Boolean(selectedRequest)}
                     />
-                    <div className="flex flex-wrap items-center justify-between text-xs text-gray-600 dark:text-gray-400">
-                      <span>
-                        {updateLocation
-                          ? `Vĩ độ: ${updateLocation.lat.toFixed(4)}, Kinh độ: ${updateLocation.lng.toFixed(4)}`
-                          : "Chưa chọn vị trí"}
-                      </span>
-                      {updateLocation && (
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateLocationChange(null)}
-                          className="text-xs font-medium text-red-500 hover:underline"
-                        >
-                          Xóa vị trí
-                        </button>
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+                        <span>
+                          {updateLocation
+                            ? `Vĩ độ: ${updateLocation.lat.toFixed(4)}, Kinh độ: ${updateLocation.lng.toFixed(4)}`
+                            : "Chưa chọn vị trí"}
+                        </span>
+                        {updateLocation && (
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateLocationChange(null)}
+                            className="text-xs font-medium text-red-500 hover:underline"
+                          >
+                            Xóa vị trí
+                          </button>
+                        )}
+                      </div>
+                      {updateLocationWarning && (
+                        <div className="rounded-lg border border-yellow-300 bg-yellow-50 px-3 py-2 text-xs text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-200">
+                          <div className="flex items-start gap-2">
+                            <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                            <p>{updateLocationWarning}</p>
+                          </div>
+                        </div>
+                      )}
+                      {updateLocation && !updateLocationWarning && !isUpdateGeocoding && (
+                        <div className="rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-xs text-green-800 dark:border-green-700 dark:bg-green-900/20 dark:text-green-200">
+                          <div className="flex items-start gap-2">
+                            <CheckCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                            <p>✓ Tọa độ nằm trong phạm vi Việt Nam</p>
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1030,6 +1830,121 @@ export default function AdminRequestsPage() {
                     Lưu ý: Cập nhật ưu tiên, trạng thái và vị trí sẽ hiển thị ngay trong bảng quản trị và bản đồ cứu trợ.
                   </p>
                 </div>
+
+                {/* Thông tin Auto-Match */}
+                {(selectedRequest.trang_thai_phe_duyet === 'da_phe_duyet' || selectedRequest.nguon_luc_match) && (
+                  <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-white/[0.08] dark:bg-gray-900/60">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      Thông tin Auto-Matching
+                    </h3>
+                    <div className="mt-4 space-y-4">
+                      {/* Trạng thái matching */}
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                          Trạng thái matching
+                        </p>
+                        <Badge 
+                          color={getMatchingStatusColor(selectedRequest.trang_thai_matching)} 
+                          size="sm"
+                        >
+                          {selectedRequest.trang_thai_matching === 'da_match' ? '✅ Đã match với nguồn lực' : 
+                           selectedRequest.trang_thai_matching === 'khong_match' ? '❌ Không tìm thấy nguồn lực phù hợp' : 
+                           '⏳ ' + translateMatchingStatus(selectedRequest.trang_thai_matching)}
+                        </Badge>
+                      </div>
+
+                      {/* Thông tin nguồn lực đã match */}
+                      {selectedRequest.nguon_luc_match && (
+                        <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
+                          <div className="space-y-3">
+                            <div>
+                              <p className="text-xs font-medium text-green-800 dark:text-green-200 mb-1">
+                                Nguồn lực đã match
+                              </p>
+                              <p className="text-sm font-semibold text-green-900 dark:text-green-100">
+                                {selectedRequest.nguon_luc_match.ten_nguon_luc}
+                              </p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                              <div>
+                                <p className="text-xs text-green-700 dark:text-green-300">
+                                  Loại
+                                </p>
+                                <p className="font-medium text-green-900 dark:text-green-100">
+                                  {selectedRequest.nguon_luc_match.loai || "—"}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-green-700 dark:text-green-300">
+                                  Số lượng khả dụng
+                                </p>
+                                <p className="font-medium text-green-900 dark:text-green-100">
+                                  {selectedRequest.nguon_luc_match.so_luong?.toLocaleString() || "—"} {selectedRequest.nguon_luc_match.don_vi || ""}
+                                </p>
+                              </div>
+                            </div>
+                            {selectedRequest.nguon_luc_match.trung_tam && (
+                              <>
+                                <div>
+                                  <p className="text-xs text-green-700 dark:text-green-300">
+                                    Trung tâm cứu trợ
+                                  </p>
+                                  <p className="font-medium text-green-900 dark:text-green-100">
+                                    {selectedRequest.nguon_luc_match.trung_tam.ten_trung_tam || "—"}
+                                  </p>
+                                  {selectedRequest.nguon_luc_match.trung_tam.dia_chi && (
+                                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                      {selectedRequest.nguon_luc_match.trung_tam.dia_chi}
+                                    </p>
+                                  )}
+                                </div>
+                              </>
+                            )}
+                            {selectedRequest.khoang_cach_gan_nhat && typeof selectedRequest.khoang_cach_gan_nhat === 'number' && (
+                              <div>
+                                <p className="text-xs text-green-700 dark:text-green-300">
+                                  Khoảng cách
+                                </p>
+                                <p className="font-medium text-green-900 dark:text-green-100">
+                                  {selectedRequest.khoang_cach_gan_nhat.toFixed(1)} km
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Thông tin phê duyệt */}
+                      {selectedRequest.nguoi_phe_duyet && (
+                        <div>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                            Người phê duyệt
+                          </p>
+                          <p className="text-sm text-gray-800 dark:text-gray-200">
+                            {selectedRequest.nguoi_phe_duyet.ho_va_ten || "—"}
+                          </p>
+                          {selectedRequest.thoi_gian_phe_duyet && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              {format(new Date(selectedRequest.thoi_gian_phe_duyet), "dd/MM/yyyy HH:mm")}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Lý do từ chối nếu có */}
+                      {selectedRequest.trang_thai_phe_duyet === 'tu_choi' && selectedRequest.ly_do_tu_choi && (
+                        <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+                          <p className="text-xs font-medium text-red-800 dark:text-red-200 mb-1">
+                            Lý do từ chối
+                          </p>
+                          <p className="text-sm text-red-900 dark:text-red-100">
+                            {selectedRequest.ly_do_tu_choi}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {selectedRequest.phan_phois && selectedRequest.phan_phois.length > 0 && (
                   <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-white/[0.08] dark:bg-gray-900/60">

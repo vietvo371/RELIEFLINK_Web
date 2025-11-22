@@ -1,234 +1,327 @@
-# ReliefLink
+# ReliefLink - Hệ thống Quản lý Cứu trợ Khẩn cấp
 
-A comprehensive relief and aid management platform built with Next.js, TypeScript, and Tailwind CSS.
+<div align="center">
+  <img src="public/images/logo/logo-dark.svg" alt="ReliefLink Logo" width="200">
+  
+  **Nền tảng quản lý và phân phối cứu trợ khẩn cấp thông minh**
+  
+  [![Next.js](https://img.shields.io/badge/Next.js-15.2.3-black)](https://nextjs.org/)
+  [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](https://www.typescriptlang.org/)
+  [![Prisma](https://img.shields.io/badge/Prisma-5.20.0-2D3748)](https://www.prisma.io/)
+  [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-336791)](https://www.postgresql.org/)
+</div>
 
-## 🚀 Features
+## 🌟 Tổng quan
 
-ReliefLink provides two distinct user interfaces:
+ReliefLink là một hệ thống quản lý cứu trợ khẩn cấp toàn diện, được thiết kế để kết nối cộng đồng với các nguồn lực cứu trợ một cách hiệu quả và minh bạch. Hệ thống tích hợp công nghệ AI để dự báo nhu cầu và blockchain để đảm bảo tính minh bạch trong quá trình phân phối.
 
-### Master Admin Dashboard
-- **Full System Control**: Complete overview and management of the entire platform
-- **User Management**: Manage all users and their permissions
-- **Analytics & Reports**: Comprehensive statistics and demographic insights
-- **Resource Allocation**: Track and manage relief resources
-- **Calendar Management**: Schedule and coordinate relief activities
-- **Advanced Charts**: Line charts, bar charts, and data visualization
-- **UI Components**: Full suite of alerts, avatars, badges, buttons, images, and videos
+## 🎯 Tính năng chính
 
-### User Portal
-- **Personal Dashboard**: View individual relief requests and donations
-- **Request Management**: Submit and track relief requests
-- **Donation Tracking**: Monitor contributions and impact
-- **Profile Management**: Update personal information and preferences
-- **Activity Feed**: View recent activities and updates
-- **Impact Score**: Track community ranking and contributions
-- **Resources**: Access relief resources and information
+### 🤖 AI Dự báo Thông minh
+- **Dự báo Thiên tai**: Phân tích và dự đoán các loại thiên tai theo khu vực
+- **Dự báo Nhu cầu**: Ước tính nhu cầu thực phẩm, nước, thuốc men, chỗ ở
+- **Phân tích Xu hướng**: Đánh giá mức độ rủi ro và khuyến nghị chuẩn bị
 
-## 🛠️ Tech Stack
+### ⛓️ Blockchain Minh bạch
+- **Theo dõi Giao dịch**: Lưu trữ tất cả các hoạt động phân phối trên blockchain
+- **Minh bạch Hoàn toàn**: Mọi giao dịch đều có thể kiểm tra và xác minh
+- **Bảo mật Cao**: Đảm bảo tính toàn vẹn của dữ liệu
 
+### 🗺️ Hệ thống Địa lý
+- **Bản đồ Tương tác**: Hiển thị vị trí các trung tâm cứu trợ và yêu cầu
+- **Định vị GPS**: Xác định chính xác vị trí cần hỗ trợ
+- **Tối ưu Tuyến đường**: Hỗ trợ tìm đường hiệu quả nhất
+
+## 👥 Hệ thống Vai trò
+
+### 🔧 Quản trị viên (Admin)
+- **Tổng quan Hệ thống**: Giám sát toàn bộ hoạt động của nền tảng
+- **Quản lý Người dùng**: Phê duyệt và quản lý tài khoản
+- **Thống kê & Báo cáo**: Phân tích dữ liệu và xu hướng
+- **Quản lý Trung tâm**: Thiết lập và giám sát các trung tâm cứu trợ
+- **Phân bổ Nguồn lực**: Điều phối phân phối tài nguyên
+
+**Routes**: `/admin/*`
+- `/admin/dashboard` - Bảng điều khiển tổng quan
+- `/admin/users` - Quản lý người dùng  
+- `/admin/centers` - Quản lý trung tâm cứu trợ
+- `/admin/resources` - Quản lý nguồn lực
+- `/admin/analytics` - Thống kê và phân tích
+- `/admin/ai-predictions` - Dự báo AI
+
+### 🚀 Tình nguyện viên (Volunteer)
+- **Bảng điều khiển Cá nhân**: Theo dõi nhiệm vụ được giao
+- **Nhận Nhiệm vụ**: Nhận và thực hiện các yêu cầu phân phối
+- **Theo dõi Tiến độ**: Cập nhật trạng thái giao hàng
+- **Lịch sử Hoạt động**: Xem các hoạt động đã thực hiện
+- **Đánh giá & Xếp hạng**: Nhận đánh giá từ cộng đồng
+
+**Routes**: `/volunteer/*`
+- `/volunteer/dashboard` - Bảng điều khiển
+- `/volunteer/tasks` - Nhiệm vụ được giao
+- `/volunteer/deliveries` - Quản lý giao hàng
+- `/volunteer/schedule` - Lịch trình hoạt động
+- `/volunteer/profile` - Hồ sơ cá nhân
+
+### 🏠 Người dân (Citizen)
+- **Gửi Yêu cầu**: Tạo yêu cầu cứu trợ khẩn cấp
+- **Theo dõi Tiến độ**: Xem trạng thái yêu cầu của mình
+- **Lịch sử Cứu trợ**: Xem các lần được hỗ trợ trước đó
+- **Thông tin Tài nguyên**: Truy cập thông tin các nguồn lực có sẵn
+- **Cộng đồng**: Kết nối với cộng đồng địa phương
+
+**Routes**: `/citizen/*`
+- `/citizen/dashboard` - Bảng điều khiển
+- `/citizen/requests` - Yêu cầu cứu trợ
+- `/citizen/resources` - Tài nguyên khả dụng
+- `/citizen/community` - Cộng đồng
+- `/citizen/profile` - Hồ sơ cá nhân
+
+## 🛠️ Công nghệ sử dụng
+
+### Frontend
 - **Framework**: Next.js 15.2.3
-- **Language**: TypeScript
+- **Language**: TypeScript 5
 - **Styling**: Tailwind CSS 4.0
-- **UI Components**: Custom components with shadcn/ui patterns
-- **Charts**: ApexCharts & React-ApexCharts
+- **UI Components**: Custom components với Lucide React icons
+- **State Management**: Zustand
+- **Data Fetching**: TanStack Query (React Query)
+- **Animation**: Framer Motion
+
+### Backend & Database  
+- **Database**: PostgreSQL
+- **ORM**: Prisma 5.20.0
+- **Authentication**: JWT với Jose
+- **Password Hashing**: bcryptjs
+- **API**: Next.js API Routes
+
+### Visualization & Maps
+- **Charts**: ApexCharts, Recharts
+- **Maps**: Mapbox GL, React Map GL
+- **Vector Maps**: React JVectorMap
 - **Calendar**: FullCalendar
-- **Maps**: React JVectorMap
-- **Forms**: React Dropzone, Flatpickr
+
+### Additional Features
+- **File Upload**: React Dropzone
+- **Date Picker**: Flatpickr
 - **Drag & Drop**: React DnD
-- **Carousel**: Swiper
+- **Cookie Management**: cookies-next
+- **Date Utilities**: date-fns
 
-## 📦 Installation
+## 🗄️ Cấu trúc Database
 
-1. Clone the repository:
+### Bảng chính:
+- **nguoi_dungs**: Quản lý người dùng (admin, tình nguyện viên, người dân)
+- **yeu_cau_cuu_tros**: Lưu trữ yêu cầu cứu trợ khẩn cấp
+- **trung_tam_cuu_tros**: Thông tin các trung tâm cứu trợ
+- **nguon_lucs**: Quản lý tài nguyên cứu trợ
+- **phan_phois**: Theo dõi quá trình phân phối
+- **nhat_ky_blockchains**: Lưu trữ blockchain logs
+- **du_bao_ais**: Dự báo AI về thiên tai và nhu cầu
+
+## 🚀 Cài đặt & Khởi chạy
+
+### 1. Clone Repository
 ```bash
 git clone <repository-url>
 cd RELIEFLINK
 ```
 
-2. Install dependencies:
+### 2. Cài đặt Dependencies
 ```bash
 npm install
-# or
+# hoặc
 yarn install
 ```
 
-3. Run the development server:
+### 3. Cấu hình Environment
+Tạo file `.env` trong thư mục gốc:
+```env
+# Database
+DATABASE_URL="postgresql://username:password@localhost:5432/relieflink"
+
+# JWT
+JWT_SECRET="your-jwt-secret-key"
+JWT_EXPIRES_IN="7d"
+
+# Next.js
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your-nextauth-secret"
+
+# API URLs
+NEXT_PUBLIC_API_URL="http://localhost:3000/api"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+
+# Mapbox (optional)
+NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN="your-mapbox-token"
+```
+
+### 4. Thiết lập Database
+```bash
+# Chạy migrations
+npm run prisma:migrate
+
+# Seed database với dữ liệu mẫu
+npm run prisma:seed
+```
+
+### 5. Khởi chạy Development Server
 ```bash
 npm run dev
-# or
+# hoặc
 yarn dev
 ```
 
-4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+Mở [http://localhost:3000](http://localhost:3000) để xem ứng dụng.
 
-## 🌐 Routes
+## 📊 Dữ liệu mẫu
 
-### Master Admin Routes
-- `/master-admin` - Master Admin Dashboard
-- `/master-admin/calendar` - Calendar Management
-- `/master-admin/users` - User Management
-- `/master-admin/form-elements` - Form Elements
-- `/master-admin/basic-tables` - Tables
-- `/master-admin/line-chart` - Line Charts
-- `/master-admin/bar-chart` - Bar Charts
-- `/master-admin/alerts` - Alert Components
-- `/master-admin/avatars` - Avatar Components
-- `/master-admin/badge` - Badge Components
-- `/master-admin/buttons` - Button Components
-- `/master-admin/images` - Image Gallery
-- `/master-admin/videos` - Video Components
+Sau khi chạy seed, bạn có thể đăng nhập với các tài khoản test:
 
-### User Routes
-- `/user` - User Dashboard
-- `/user/requests` - Relief Requests
-- `/user/profile` - User Profile
-- `/user/resources` - Resource Center
+### Admin
+- **Email**: admin@relieflink.vn
+- **Password**: password123
 
-## 🎨 Theme Support
+### Tình nguyện viên
+- **Email**: volunteer1@relieflink.vn đến volunteer20@relieflink.vn
+- **Password**: password123
 
-ReliefLink supports both light and dark themes:
-- Toggle theme using the theme switcher in the header
-- Theme preference is saved automatically
-- Dark mode optimized for better readability
+### Người dân  
+- **Email**: citizen1@relieflink.vn đến citizen50@relieflink.vn
+- **Password**: password123
 
-## 📱 Responsive Design
-
-The platform is fully responsive and works seamlessly on:
-- Desktop (1920px and above)
-- Laptop (1024px - 1919px)
-- Tablet (768px - 1023px)
-- Mobile (320px - 767px)
-
-## 🔧 Configuration
-
-### Environment Variables
-
-Create a `.env.local` file in the root directory:
-
-```env
-NEXT_PUBLIC_API_URL=your_api_url
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
-
-### Tailwind Configuration
-
-The project uses Tailwind CSS v4 with custom theme configuration in `src/app/globals.css`.
-
-## 📂 Project Structure
+## 📂 Cấu trúc Project
 
 ```
 RELIEFLINK/
+├── prisma/
+│   ├── schema.prisma         # Database schema
+│   ├── seed.ts              # Dữ liệu mẫu
+│   └── migrations/          # Database migrations
 ├── public/
-│   └── images/          # Static images and assets
+│   └── images/              # Static assets
 ├── src/
 │   ├── app/
-│   │   ├── master-admin/   # Master admin routes
-│   │   ├── user/           # User routes
-│   │   ├── layout.tsx      # Root layout
-│   │   ├── page.tsx        # Home page (redirects)
-│   │   ├── not-found.tsx   # 404 page
-│   │   └── globals.css     # Global styles
+│   │   ├── (auth)/         # Authentication pages
+│   │   ├── admin/          # Admin dashboard
+│   │   ├── volunteer/      # Volunteer portal  
+│   │   ├── citizen/        # Citizen portal
+│   │   └── api/            # API endpoints
 │   ├── components/
-│   │   ├── auth/           # Authentication components
-│   │   ├── calendar/       # Calendar components
+│   │   ├── admin/          # Admin components
+│   │   ├── auth/           # Auth components
+│   │   ├── relief/         # Relief-specific components
 │   │   ├── charts/         # Chart components
-│   │   ├── common/         # Common/shared components
-│   │   ├── ecommerce/      # Dashboard components
-│   │   ├── form/           # Form components
-│   │   ├── header/         # Header components
-│   │   ├── tables/         # Table components
-│   │   ├── ui/             # UI components
-│   │   └── videos/         # Video components
-│   ├── context/
-│   │   ├── SidebarContext.tsx  # Sidebar state management
-│   │   └── ThemeContext.tsx    # Theme state management
+│   │   └── common/         # Shared components
 │   ├── hooks/              # Custom React hooks
-│   ├── icons/              # SVG icons
-│   └── layout/
-│       ├── AppHeader.tsx   # Application header
-│       ├── AppSidebar.tsx  # Application sidebar
-│       ├── Backdrop.tsx    # Mobile overlay
-│       └── SidebarWidget.tsx  # Sidebar widget
+│   ├── lib/                # Utility functions
+│   ├── context/            # React contexts
+│   └── store/              # State management
 ├── package.json
-├── tsconfig.json
-├── next.config.ts
+├── prisma/
 └── README.md
 ```
 
-## 🚦 Available Scripts
+## 🎯 API Endpoints
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run lint` - Run ESLint
+### Authentication
+- `POST /api/auth/login` - Đăng nhập
+- `POST /api/auth/register` - Đăng ký
+- `POST /api/auth/logout` - Đăng xuất
 
-## 🎯 Key Features Implementation
+### Users
+- `GET /api/users` - Lấy danh sách người dùng
+- `GET /api/users/[id]` - Lấy thông tin người dùng
+- `PUT /api/users/[id]` - Cập nhật thông tin
 
-### Role-Based Access Control
-The platform implements role-based routing:
-- Master Admin users access `/master-admin/*` routes
-- Regular users access `/user/*` routes
-- Each role has customized sidebar navigation and dashboard
+### Relief Requests
+- `GET /api/requests` - Lấy danh sách yêu cầu
+- `POST /api/requests` - Tạo yêu cầu mới
+- `PUT /api/requests/[id]` - Cập nhật yêu cầu
+- `DELETE /api/requests/[id]` - Xóa yêu cầu
 
-### Responsive Sidebar
-- Expandable/collapsible sidebar
-- Hover expand feature on desktop
-- Mobile-friendly drawer
-- Dynamic width adjustments
-- Persistent state management
+### Resources & Centers
+- `GET /api/centers` - Danh sách trung tâm
+- `GET /api/resources` - Danh sách tài nguyên
+- `POST /api/distributions` - Tạo phân phối mới
 
-### Dark Mode
-- System-wide dark mode support
-- Smooth transitions between themes
-- Optimized colors for both modes
-- Icon adaptations for theme
+### AI & Analytics
+- `GET /api/ai/predictions` - Dự báo AI
+- `GET /api/analytics/dashboard` - Dữ liệu dashboard
+- `GET /api/blockchain/logs` - Blockchain logs
 
-## 🔐 Authentication
+## 🔧 Scripts có sẵn
 
-The platform includes authentication pages:
-- Sign In: `/signin`
-- Sign Up: `/signup`
+```bash
+npm run dev           # Chạy development server
+npm run build         # Build production
+npm run start         # Chạy production server
+npm run lint          # Kiểm tra code quality
+npm run prisma:generate   # Generate Prisma client
+npm run prisma:migrate    # Chạy database migrations  
+npm run prisma:seed       # Seed database với dữ liệu mẫu
+```
 
-## 📊 Dashboard Components
+## 🌍 Tính năng đặc biệt
 
-### Master Admin Dashboard
-- Ecommerce metrics cards
-- Monthly sales charts
-- Statistics visualization
-- Recent orders table
-- Demographic distribution map
+### 🤖 AI-Powered Predictions
+- Dự báo thiên tai dựa trên dữ liệu lịch sử
+- Ước tính nhu cầu cứu trợ theo khu vực
+- Phân tích xu hướng và đưa ra khuyến nghị
 
-### User Dashboard
-- Relief request counter
-- Donation tracking
-- Impact score display
-- Recent activity timeline
+### ⛓️ Blockchain Integration  
+- Lưu trữ tất cả giao dịch trên blockchain
+- Đảm bảo tính minh bạch và không thể thay đổi
+- Theo dõi từng bước trong chuỗi cung ứng
 
-## 🤝 Contributing
+### 🗺️ Real-time Mapping
+- Hiển thị vị trí thời gian thực
+- Tối ưu hóa tuyến đường giao hàng
+- Theo dõi tiến độ phân phối
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+### 📱 Responsive Design
+- Tương thích đa nền tảng
+- Progressive Web App (PWA) ready
+- Offline capabilities
+
+## 🤝 Đóng góp
+
+1. Fork repository
+2. Tạo feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Mở Pull Request
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+Dự án này được cấp phép theo MIT License - xem file [LICENSE](LICENSE) để biết thêm chi tiết.
 
-## 👥 Support
+## 👥 Team
 
-For support and questions:
-- Create an issue in the repository
-- Contact the development team
+- **Lead Developer**: [Your Name]
+- **Backend Developer**: [Name]
+- **Frontend Developer**: [Name]
+- **UI/UX Designer**: [Name]
 
-## 🙏 Acknowledgments
+## 🆘 Hỗ trợ
 
-- Built on top of a Next.js admin dashboard template
-- Icons and assets from various open-source projects
-- Tailwind CSS for styling framework
+Nếu bạn gặp vấn đề hoặc có câu hỏi:
+- Tạo issue trên GitHub repository
+- Liên hệ team phát triển qua email
+- Tham gia Discord server của dự án
+
+## 🙏 Cảm ơn
+
+- OpenStreetMap cho dữ liệu bản đồ
+- Prisma team cho ORM tuyệt vời
+- Next.js team cho framework mạnh mẽ
+- Cộng đồng open source Việt Nam
 
 ---
 
-**ReliefLink** - Connecting communities with relief resources efficiently and transparently.
+<div align="center">
+  <strong>ReliefLink</strong> - Kết nối cộng đồng với nguồn lực cứu trợ một cách thông minh và minh bạch
+  
+  Made with ❤️ in Vietnam
+</div>
 

@@ -10,6 +10,7 @@ type RequestsResponse = {
 type CreateRequestPayload = {
   loai_yeu_cau: string;
   mo_ta?: string | null;
+  dia_chi?: string | null;
   so_nguoi: number;
   do_uu_tien: string;
   trang_thai: string;
@@ -23,6 +24,7 @@ type UpdateRequestPayload = {
   trang_thai?: string;
   vi_do?: number | null;
   kinh_do?: number | null;
+  dia_chi?: string | null;
 };
 
 export function useRequests(filters?: RequestFilters) {

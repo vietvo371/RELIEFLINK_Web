@@ -74,4 +74,32 @@ export function getDistributionStatusColor(status: string): string {
   return "light";
 }
 
+/**
+ * Translate approval status to Vietnamese
+ */
+export function translateApprovalStatus(status: string | undefined | null): string {
+  if (!status) return "Chờ phê duyệt";
+  
+  const translations: Record<string, string> = {
+    cho_phe_duyet: "Chờ phê duyệt",
+    da_phe_duyet: "Đã phê duyệt",
+    tu_choi: "Đã từ chối",
+  };
+  return translations[status] || status;
+}
+
+/**
+ * Translate matching status to Vietnamese
+ */
+export function translateMatchingStatus(status: string | undefined | null): string {
+  if (!status) return "Chờ matching";
+  
+  const translations: Record<string, string> = {
+    chua_match: "Chưa match",
+    da_match: "Đã match",
+    khong_match: "Không match được",
+  };
+  return translations[status] || status;
+}
+
 
