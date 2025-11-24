@@ -139,23 +139,27 @@ export default function AdminDataTable({
                   </TableCell>
                 </TableRow>
               ) : (
-                data.map((row, index) => (
-                  <TableRow
-                    key={index}
-                    className="transition-colors hover:bg-brand-50/40 dark:hover:bg-brand-500/10"
-                  >
-                    {columns.map((column) => (
-                      <TableCell
-                        key={column.key}
-                        className="px-6 py-4 text-sm text-gray-700 first:pl-6 last:pr-6 dark:text-gray-200"
-                      >
-                        {column.render
-                          ? column.render(row[column.key], row)
-                          : row[column.key]}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
+                data.map((row, index) => {
+                  // Use unique key from row if available, otherwise use index
+                  const rowKey = row.id || row.tinh_thanh || `${row.timestamp || index}-${index}`;
+                  return (
+                    <TableRow
+                      key={rowKey}
+                      className="transition-colors hover:bg-brand-50/40 dark:hover:bg-brand-500/10"
+                    >
+                      {columns.map((column) => (
+                        <TableCell
+                          key={column.key}
+                          className="px-6 py-4 text-sm text-gray-700 first:pl-6 last:pr-6 dark:text-gray-200"
+                        >
+                          {column.render
+                            ? column.render(row[column.key], row)
+                            : row[column.key]}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>

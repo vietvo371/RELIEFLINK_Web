@@ -19,10 +19,11 @@ import AdminDataTable from "@/components/admin/AdminDataTable";
 import AdminModal from "@/components/admin/AdminModal";
 import AdminLoading from "@/components/admin/AdminLoading";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
+import Badge from "@/components/ui/badge/Badge";
 import Button from "@/components/ui/button/Button";
 import Select from "@/components/form/Select";
 import PredictionChart from "@/components/relief/PredictionChart";
-import { useAIPredictions, AIPrediction } from "@/hooks/useAIPredictions";
+import { useAIPredictions, useAIServiceHealth, AIPrediction } from "@/hooks/useAIPredictions";
 
 type PredictionsResponse = {
   predictions: AIPrediction[];
@@ -45,9 +46,14 @@ export default function AdminAIPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
+  // Check AI service health
+  const { data: healthData, isLoading: healthLoading } = useAIServiceHealth();
+  const isPythonAIAvailable = healthData?.available === true;
+
   const { data, isLoading, refetch } = useAIPredictions(
     selectedProvince !== "all" ? selectedProvince : undefined,
     generateMock,
+    true // Tự động sử dụng Python AI nếu available
   );
 
   const predictions = useMemo(
@@ -199,10 +205,32 @@ export default function AdminAIPage() {
     <div className="space-y-6">
       <AdminPageHeader
         title="Dự báo AI"
-        description="Phân tích và dự đoán nhu cầu cứu trợ theo khu vực"
+        description={
+          <div className="flex flex-col gap-1">
+            <span>Phân tích và dự đoán nhu cầu cứu trợ theo khu vực</span>
+            {!healthLoading && (
+              <div className="flex items-center gap-2 text-xs mt-1">
+                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full ${
+                  isPythonAIAvailable 
+                    ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" 
+                    : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                }`}>
+                  <span className={`w-2 h-2 rounded-full ${
+                    isPythonAIAvailable ? "bg-green-500" : "bg-yellow-500"
+                  }`} />
+                  {isPythonAIAvailable 
+                    ? "Python AI Service: Hoạt động" 
+                    : "Python AI Service: Không khả dụng (sử dụng mock data)"}
+                </span>
+              </div>
+            )}
+          </div>
+        }
         actions={[
           {
-            label: generateMock ? "Đang hiển thị dữ liệu giả lập" : "Hiển thị dữ liệu giả lập",
+            label: generateMock 
+              ? (isPythonAIAvailable ? "Tạo dự báo AI mới" : "Đang hiển thị dữ liệu giả lập")
+              : "Tạo dự báo mới",
             variant: "outline",
             onClick: () => setGenerateMock((prev) => !prev),
           },
@@ -250,10 +278,14 @@ export default function AdminAIPage() {
         <AdminEmptyState
           icon={<Earth className="h-6 w-6" aria-hidden />}
           title="Chưa có dữ liệu dự báo"
-          description="Hãy chạy mô hình AI hoặc bật chế độ giả lập để xem thử."
+          description={
+            isPythonAIAvailable
+              ? "Nhấn 'Tạo dự báo mới' để sử dụng Python AI Service phân tích dữ liệu lịch sử."
+              : "Python AI Service không khả dụng. Hãy chạy AI service hoặc nhấn 'Tạo dự báo mới' để xem dữ liệu mẫu."
+          }
           action={
             <Button onClick={() => setGenerateMock(true)} startIcon={<RefreshCcw className="h-4 w-4" />}>
-              Hiển thị dữ liệu giả lập
+              {isPythonAIAvailable ? "Tạo dự báo AI mới" : "Hiển thị dữ liệu mẫu"}
             </Button>
           }
         />
@@ -388,6 +420,42 @@ export default function AdminAIPage() {
               <MetricCard icon={Stethoscope} label="Thuốc" value={selectedPrediction.du_doan_nhu_cau_thuoc} suffix="đơn vị" />
               <MetricCard icon={Home} label="Chỗ ở" value={selectedPrediction.du_doan_nhu_cau_cho_o} suffix="hộ" />
             </div>
+            {(selectedPrediction.method || selectedPrediction.confidence_score !== undefined) && (
+              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                {selectedPrediction.method && (
+                  <div className="flex items-center justify-between text-xs mb-2">
+                    <span className="text-gray-500 dark:text-gray-400">Phương pháp dự báo:</span>
+                    <Badge color={
+                      selectedPrediction.method === "heuristic" || selectedPrediction.method === "ml" || selectedPrediction.method === "python_ai"
+                        ? "success"
+                        : selectedPrediction.method === "fallback_mock"
+                        ? "warning"
+                        : "info"
+                    } size="sm">
+                      {selectedPrediction.method === "heuristic" && "Heuristic (Historical Data)"}
+                      {selectedPrediction.method === "ml" && "Machine Learning"}
+                      {selectedPrediction.method === "python_ai" && "Python AI Service"}
+                      {selectedPrediction.method === "fallback_mock" && "Mock Data (Fallback)"}
+                      {selectedPrediction.method === "mock" && "Mock Data"}
+                      {!["heuristic", "ml", "python_ai", "fallback_mock", "mock"].includes(selectedPrediction.method || "") && selectedPrediction.method}
+                    </Badge>
+                  </div>
+                )}
+                {selectedPrediction.confidence_score !== undefined && (
+                  <div className="flex items-center justify-between text-xs mb-2">
+                    <span className="text-gray-500 dark:text-gray-400">Độ tin cậy:</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">
+                      {(selectedPrediction.confidence_score * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                )}
+                {selectedPrediction.warning && (
+                  <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded text-xs text-yellow-700 dark:text-yellow-400">
+                    ⚠️ {selectedPrediction.warning}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <AdminEmptyState

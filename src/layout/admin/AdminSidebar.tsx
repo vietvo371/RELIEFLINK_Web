@@ -5,7 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAdminSidebar } from "@/context/AdminSidebarContext";
 import { HorizontaLDots } from "@/icons/index";
-import { Brain, Users, Truck, Package, FileText, LayoutDashboard, Building2, User } from "lucide-react";
+import { Brain, Users, Truck, Package, FileText, LayoutDashboard, Building2, User, CloudRain } from "lucide-react";
 import SidebarWidget from "@/layout/SidebarWidget";
 
 type NavItem = {
@@ -25,6 +25,7 @@ const navItems: NavItem[] = [
   { name: "Blockchain", href: "/admin/blockchain", icon: FileText },
   { name: "Báo cáo", href: "/admin/reports", icon: FileText },
   { name: "AI Dự báo", href: "/admin/ai", icon: Brain },
+  { name: "Cảnh báo thời tiết", href: "/admin/weather", icon: CloudRain },
   { name: "Cấu hình", href: "/admin/settings", icon: FileText },
   { name: "Hồ sơ", href: "/admin/profile", icon: User },
 ];

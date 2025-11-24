@@ -7,18 +7,29 @@ import { NotificationService } from "@/lib/notificationService";
 export async function GET(request: NextRequest) {
   try {
     const token = request.cookies.get("token")?.value;
+    console.log("🔔 GET /api/notifications - Token exists:", !!token);
+    
     if (!token) {
+      console.error("❌ GET /api/notifications - No token");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const payload = await verifyToken(token);
+    console.log("🔔 GET /api/notifications - Payload:", payload);
+    
     if (!payload) {
+      console.error("❌ GET /api/notifications - Invalid token");
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "20");
     const unreadOnly = searchParams.get("unread") === "true";
+
+    console.log("🔔 GET /api/notifications - User ID:", payload.userId);
+    console.log("🔔 GET /api/notifications - User role:", payload.vai_tro);
+    console.log("🔔 GET /api/notifications - Limit:", limit);
+    console.log("🔔 GET /api/notifications - Unread only:", unreadOnly);
 
     let notifications;
     if (unreadOnly) {
@@ -42,7 +53,10 @@ export async function GET(request: NextRequest) {
       notifications = await NotificationService.getUserNotifications(payload.userId, limit);
     }
 
+    console.log("🔔 GET /api/notifications - Found notifications:", notifications.length);
+
     const unreadCount = await NotificationService.getUnreadCount(payload.userId);
+    console.log("🔔 GET /api/notifications - Unread count:", unreadCount);
 
     return NextResponse.json({ 
       notifications, 
@@ -50,7 +64,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error("Get notifications error:", error);
+    console.error("❌ Get notifications error:", error);
     return NextResponse.json(
       { error: "Lỗi khi lấy thông báo" },
       { status: 500 }

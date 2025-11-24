@@ -3,11 +3,13 @@
  * Hiển thị thông báo realtime với dropdown
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { Bell, Check, X, AlertTriangle, Package, UserCheck } from "lucide-react";
 import { useNotifications, useMarkNotificationsRead, useUnreadNotifications } from "@/hooks/useWorkflow";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
+import { useAuthStore } from "@/store/authStore";
 
 interface NotificationDropdownProps {
   className?: string;
@@ -15,12 +17,67 @@ interface NotificationDropdownProps {
 
 export default function NotificationDropdown({ className = "" }: NotificationDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const { data: notificationsData } = useNotifications(10);
-  const { data: unreadData } = useUnreadNotifications();
+  const { user } = useAuthStore();
+  const { data: notificationsData, isLoading, error: notificationsError } = useNotifications(10);
+  const { data: unreadData, error: unreadError } = useUnreadNotifications();
   const markAsRead = useMarkNotificationsRead();
 
-  const notifications = notificationsData?.notifications || [];
-  const unreadCount = unreadData?.unreadCount || 0;
+  // Get notification page URL based on user role
+  const getNotificationPageUrl = () => {
+    if (!user) return "/admin/notifications";
+    switch (user.vai_tro) {
+      case "admin":
+        return "/admin/notifications";
+      case "tinh_nguyen_vien":
+        return "/volunteer/notifications";
+      case "nguoi_dan":
+        return "/citizen/notifications";
+      default:
+        return "/admin/notifications";
+    }
+  };
+
+  // Debug logs
+  useEffect(() => {
+    console.log("🔔 NotificationDropdown - User:", user);
+    console.log("🔔 NotificationDropdown - User role:", user?.vai_tro);
+    if (notificationsError) {
+      console.error("❌ Notifications error:", notificationsError);
+    }
+    if (unreadError) {
+      console.error("❌ Unread count error:", unreadError);
+    }
+    if (notificationsData) {
+      console.log("📬 Notifications data:", notificationsData);
+      console.log("📬 Notifications array:", notificationsData?.notifications);
+      console.log("📬 Unread count:", notificationsData?.unreadCount);
+    }
+  }, [notificationsData, notificationsError, unreadError, user]);
+
+  // Handle response format - API returns { notifications, unreadCount }
+  const notifications = Array.isArray(notificationsData?.notifications) 
+    ? notificationsData.notifications 
+    : Array.isArray(notificationsData) 
+    ? notificationsData 
+    : [];
+  
+  const unreadCount = unreadData?.unreadCount ?? notificationsData?.unreadCount ?? 0;
+  
+  // Debug: Log when dropdown opens
+  useEffect(() => {
+    if (isOpen) {
+      console.log("🔔 NotificationDropdown opened");
+      console.log("📊 User:", user);
+      console.log("📊 User ID:", user?.id);
+      console.log("📊 User role:", user?.vai_tro);
+      console.log("📊 Is loading:", isLoading);
+      console.log("📊 Notifications array length:", notifications.length);
+      console.log("📊 Unread count:", unreadCount);
+      console.log("📊 Full notificationsData:", notificationsData);
+      console.log("📊 Notifications array:", notifications);
+      console.log("📊 Error:", notificationsError || unreadError);
+    }
+  }, [isOpen, notifications.length, unreadCount, notificationsData, user, isLoading, notificationsError, unreadError, notifications]);
 
   const handleMarkAsRead = (notificationIds: number[]) => {
     markAsRead.mutate(notificationIds);
@@ -109,7 +166,18 @@ export default function NotificationDropdown({ className = "" }: NotificationDro
 
             {/* Notifications List */}
             <div className="max-h-96 overflow-y-auto">
-              {notifications.length === 0 ? (
+              {isLoading ? (
+                <div className="px-4 py-8 text-center text-gray-500">
+                  <Bell className="h-8 w-8 mx-auto mb-2 text-gray-400 animate-pulse" />
+                  <p>Đang tải thông báo...</p>
+                </div>
+              ) : notificationsError ? (
+                <div className="px-4 py-8 text-center text-red-500">
+                  <AlertTriangle className="h-8 w-8 mx-auto mb-2" />
+                  <p>Lỗi khi tải thông báo</p>
+                  <p className="text-xs mt-1">{notificationsError.message || "Vui lòng thử lại"}</p>
+                </div>
+              ) : notifications.length === 0 ? (
                 <div className="px-4 py-8 text-center text-gray-500">
                   <Bell className="h-8 w-8 mx-auto mb-2 text-gray-400" />
                   <p>Không có thông báo nào</p>
@@ -153,7 +221,7 @@ export default function NotificationDropdown({ className = "" }: NotificationDro
                           
                           <div className="flex items-center justify-between mt-2">
                             <p className="text-xs text-gray-500">
-                              {notification.nguoi_gui.ho_va_ten} • {notification.nguoi_gui.vai_tro}
+                              {notification.nguoi_gui?.ho_va_ten || "Hệ thống"} • {notification.nguoi_gui?.vai_tro || "admin"}
                             </p>
                             <p className="text-xs text-gray-500">
                               {formatDistanceToNow(new Date(notification.created_at), {
@@ -178,9 +246,13 @@ export default function NotificationDropdown({ className = "" }: NotificationDro
             {/* Footer */}
             {notifications.length > 0 && (
               <div className="px-4 py-3 border-t bg-gray-50">
-                <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                <Link 
+                  href={getNotificationPageUrl()} 
+                  className="text-sm text-blue-600 hover:text-blue-800 font-medium block text-center"
+                  onClick={() => setIsOpen(false)}
+                >
                   Xem tất cả thông báo
-                </button>
+                </Link>
               </div>
             )}
           </div>

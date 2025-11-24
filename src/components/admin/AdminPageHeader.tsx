@@ -5,7 +5,7 @@ import { Plus, Download, Filter } from "lucide-react";
 
 interface AdminPageHeaderProps {
   title: string;
-  description?: string;
+  description?: string | React.ReactNode;
   actions?: {
     label: string;
     onClick: () => void;
@@ -31,7 +31,13 @@ export default function AdminPageHeader({
       <div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{title}</h1>
         {description && (
-          <p className="text-gray-600 dark:text-gray-400 mt-1">{description}</p>
+          <div className="text-gray-600 dark:text-gray-400 mt-1">
+            {typeof description === "string" ? (
+              <p>{description}</p>
+            ) : (
+              description
+            )}
+          </div>
         )}
       </div>
       
