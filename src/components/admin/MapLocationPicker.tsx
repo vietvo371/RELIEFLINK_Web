@@ -95,11 +95,27 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
 
     mapRef.current = mapInstance;
 
-    setTimeout(() => mapInstance.resize(), 250);
+    // Use timeout with cleanup to prevent resize on unmounted component
+    const resizeTimeout = setTimeout(() => {
+      // Check if map still exists before resizing
+      if (mapRef.current && containerRef.current) {
+        try {
+          mapRef.current.resize();
+        } catch (error) {
+          // Ignore resize errors on unmounted map
+          console.debug("Map resize skipped - component may have unmounted");
+        }
+      }
+    }, 250);
 
     return () => {
+      clearTimeout(resizeTimeout);
       mapInstance.off("click", handleClick);
-      mapInstance.remove();
+      try {
+        mapInstance.remove();
+      } catch (error) {
+        // Ignore errors when removing already destroyed map
+      }
       mapRef.current = null;
       markerRef.current = null;
     };
@@ -107,7 +123,11 @@ const MapLocationPicker: React.FC<MapLocationPickerProps> = ({
 
   useEffect(() => {
     if (!mapRef.current || !hasToken) return;
-    mapRef.current.resize();
+    try {
+      mapRef.current.resize();
+    } catch (error) {
+      // Ignore resize errors
+    }
   }, [isActive, hasToken]);
 
   useEffect(() => {

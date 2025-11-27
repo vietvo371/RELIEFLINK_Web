@@ -38,7 +38,7 @@ model nguoi_dungs {
 
 model yeu_cau_cuu_tros {
   id                    Int                 @id @default(autoincrement())
-  id_nguoi_dung         Int
+  id_nguoi_dung         Int?                // Optional để hỗ trợ anonymous request
   loai_yeu_cau          String
   mo_ta                 String?
   dia_chi               String?             // Địa chỉ dạng text (bổ sung)
@@ -47,6 +47,11 @@ model yeu_cau_cuu_tros {
   vi_do                 Decimal?            @db.Decimal(10, 8)
   kinh_do               Decimal?            @db.Decimal(11, 8)
   trang_thai            String
+  
+  // Thông tin liên hệ cho anonymous request
+  ho_va_ten_lien_he     String?             // Họ tên người yêu cầu (anonymous)
+  so_dien_thoai_lien_he String?             // SĐT người yêu cầu (anonymous)
+  email_lien_he         String?             // Email người yêu cầu (anonymous)
   
   // Hệ thống phê duyệt
   trang_thai_phe_duyet  String              @default("cho_phe_duyet") // cho_phe_duyet, da_phe_duyet, tu_choi
@@ -65,7 +70,7 @@ model yeu_cau_cuu_tros {
   updated_at            DateTime            @updatedAt
   
   // Relations
-  nguoi_dung            nguoi_dungs         @relation(fields: [id_nguoi_dung], references: [id])
+  nguoi_dung            nguoi_dungs?        @relation(fields: [id_nguoi_dung], references: [id])
   nguoi_phe_duyet       nguoi_dungs?        @relation("PheDuyetYeuCau", fields: [id_nguoi_phe_duyet], references: [id])
   nguon_luc_match       nguon_lucs?         @relation("AutoMatch", fields: [id_nguon_luc_match], references: [id])
   phan_phois            phan_phois[]

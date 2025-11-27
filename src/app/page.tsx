@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { 
+import {
   CheckCircleIcon,
   BoltIcon,
   BoxIcon,
@@ -10,6 +10,7 @@ import {
   ChevronDownIcon,
 } from "@/icons";
 import MapboxMap from "@/components/ui/map/MapboxMap";
+import PublicNavigation from "@/components/common/PublicNavigation";
 
 export default function LandingPage() {
   const [scrolled, setScrolled] = useState(false);
@@ -22,7 +23,7 @@ export default function LandingPage() {
     const handleMouseMove = (e: MouseEvent) => {
       setMousePosition({ x: e.clientX, y: e.clientY });
     };
-    
+
     window.addEventListener("scroll", handleScroll);
     window.addEventListener("mousemove", handleMouseMove);
     return () => {
@@ -40,7 +41,7 @@ export default function LandingPage() {
           animate={{
             x: mousePosition.x * 0.02,
             y: mousePosition.y * 0.02,
-          }} 
+          }}
           transition={{ type: "spring", stiffness: 50, damping: 30 }}
         />
         <motion.div
@@ -53,61 +54,8 @@ export default function LandingPage() {
         />
       </div>
 
-      {/* Navigation */}
-      <motion.nav
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          scrolled
-            ? "bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl shadow-theme-lg border-b border-gray-200/50 dark:border-gray-800/50"
-            : "bg-transparent"
-        }`}
-      >
-        <div className="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 sm:h-20">
-            <motion.div 
-              className="flex items-center"
-              whileHover={{ scale: 1.05 }}
-            >
-              <img src="/images/logo/logo.svg" alt="ReliefLink Logo" className="h-8 w-auto" />
-            </motion.div>
-            <div className="hidden gap-8 md:flex">
-              {["Tính năng", "Cách hoạt động", "Thống kê"].map((item, index) => (
-                <motion.a
-                  key={item}
-                  href={`#${item === "Tính năng" ? "features" : item === "Cách hoạt động" ? "how-it-works" : "stats"}`}
-                  className="text-sm font-medium text-gray-700 transition-colors hover:text-success-600 dark:text-gray-300 dark:hover:text-success-400 relative group"
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  {item}
-                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-success-500 to-success-600 transition-all group-hover:w-full" />
-                </motion.a>
-              ))}
-            </div>
-            <motion.div 
-              className="flex items-center gap-3"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              <Link
-                href="/login"
-                className="px-4 py-2 text-sm font-medium text-gray-700 transition-all rounded-lg hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800/50"
-              >
-                Đăng nhập
-              </Link>
-              <Link
-                href="/register"
-                className="px-4 py-2 text-sm font-medium text-white transition-all rounded-lg bg-gradient-to-r from-success-500 to-success-600 hover:shadow-lg hover:shadow-success-500/50 hover:scale-105"
-              >
-                Đăng ký
-              </Link>
-            </motion.div>
-          </div>
-        </div>
-      </motion.nav>
+      {/* Navigation - Shared Component */}
+      <PublicNavigation scrolled={scrolled} variant="default" />
 
       {/* Hero Section */}
       <section className="relative pt-24 pb-20 overflow-hidden sm:pt-32 sm:pb-32">
@@ -116,7 +64,7 @@ export default function LandingPage() {
           <div className="absolute inset-0 bg-gradient-to-br from-white via-success-50/30 to-blue-light-50/20 dark:from-gray-950 dark:via-success-950/20 dark:to-blue-light-950/10" />
           <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.02] dark:opacity-[0.05]" />
         </div>
-        
+
         {/* Animated Decorative Elements */}
         <motion.div
           className="absolute top-20 right-10 w-72 h-72 bg-gradient-to-br from-success-400/30 to-success-500/20 rounded-full blur-3xl"
@@ -162,7 +110,7 @@ export default function LandingPage() {
                 Nền tảng cứu trợ thiên tai thông minh
               </span>
             </motion.div>
-            
+
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -174,18 +122,18 @@ export default function LandingPage() {
                 thay đổi cuộc sống
               </span>
             </motion.h1>
-            
+
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
               className="max-w-3xl mx-auto mb-10 text-lg text-gray-600 sm:text-xl dark:text-gray-400"
             >
-              ReliefLink là nền tảng điều phối cứu trợ thiên tai thời gian thực 
-              với dự báo AI và tính minh bạch blockchain, giúp kết nối nguồn lực 
+              ReliefLink là nền tảng điều phối cứu trợ thiên tai thời gian thực
+              với dự báo AI và tính minh bạch blockchain, giúp kết nối nguồn lực
               đến những người cần giúp đỡ một cách nhanh chóng và hiệu quả nhất.
             </motion.p>
-            
+
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -253,7 +201,7 @@ export default function LandingPage() {
       <section id="features" className="py-20 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 sm:py-32 relative overflow-hidden">
         {/* Background Pattern */}
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-[0.02] dark:opacity-[0.03]" />
-        
+
         <div className="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8 relative">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -340,7 +288,7 @@ export default function LandingPage() {
               >
                 {/* Gradient Background */}
                 <div className={`absolute inset-0 bg-gradient-to-br ${feature.bgGradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
-                
+
                 {/* Animated Orb */}
                 <motion.div
                   className={`absolute top-0 right-0 w-32 h-32 rounded-full bg-gradient-to-br ${feature.gradient} opacity-0 blur-2xl group-hover:opacity-20 transition-opacity duration-500 -mr-16 -mt-16`}
@@ -353,7 +301,7 @@ export default function LandingPage() {
                     ease: "easeInOut",
                   }}
                 />
-                
+
                 <div className="relative">
                   <motion.div
                     whileHover={{ rotate: 360, scale: 1.1 }}
@@ -407,7 +355,7 @@ export default function LandingPage() {
                     Đăng ký tài khoản
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400">
-                    Dân thường, tình nguyện viên hoặc admin tạo tài khoản và 
+                    Dân thường, tình nguyện viên hoặc admin tạo tài khoản và
                     được phân quyền phù hợp với vai trò của mình trong hệ thống.
                   </p>
                 </div>
@@ -433,7 +381,7 @@ export default function LandingPage() {
                     Gửi yêu cầu cứu trợ
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400">
-                    Người dân gửi yêu cầu cứu trợ với thông tin chi tiết về vị trí, 
+                    Người dân gửi yêu cầu cứu trợ với thông tin chi tiết về vị trí,
                     loại hàng hóa và số lượng cần thiết. Hệ thống tự động định vị.
                   </p>
                 </div>
@@ -451,7 +399,7 @@ export default function LandingPage() {
                     Phân bổ & Phân phối
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400">
-                    Admin và tình nguyện viên xem yêu cầu, phân bổ nguồn lực từ 
+                    Admin và tình nguyện viên xem yêu cầu, phân bổ nguồn lực từ
                     trung tâm và thực hiện phân phối. Mọi giao dịch được ghi blockchain.
                   </p>
                 </div>
@@ -477,7 +425,7 @@ export default function LandingPage() {
                     Theo dõi & Báo cáo
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400">
-                    Tất cả bên liên quan có thể theo dõi tiến độ thời gian thực, 
+                    Tất cả bên liên quan có thể theo dõi tiến độ thời gian thực,
                     xem báo cáo thống kê và kiểm tra tính minh bạch qua blockchain.
                   </p>
                 </div>
@@ -556,7 +504,7 @@ export default function LandingPage() {
         {/* Gradient Background */}
         <div className="absolute inset-0 bg-gradient-to-br from-success-600 via-success-500 to-blue-light-500"></div>
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
-        
+
         {/* Animated Orbs */}
         <motion.div
           className="absolute top-0 right-0 w-[500px] h-[500px] bg-white rounded-full blur-3xl opacity-20"
@@ -585,7 +533,7 @@ export default function LandingPage() {
             delay: 1,
           }}
         />
-        
+
         <div className="relative px-4 mx-auto text-center max-w-7xl sm:px-6 lg:px-8">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
@@ -607,7 +555,7 @@ export default function LandingPage() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="max-w-2xl mx-auto mb-10 text-lg text-white/90 sm:text-xl drop-shadow"
           >
-            Tham gia cùng chúng tôi để xây dựng một hệ thống cứu trợ thiên tai 
+            Tham gia cùng chúng tôi để xây dựng một hệ thống cứu trợ thiên tai
             minh bạch, hiệu quả và nhân văn hơn.
           </motion.p>
           <motion.div

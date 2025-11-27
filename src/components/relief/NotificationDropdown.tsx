@@ -55,14 +55,14 @@ export default function NotificationDropdown({ className = "" }: NotificationDro
   }, [notificationsData, notificationsError, unreadError, user]);
 
   // Handle response format - API returns { notifications, unreadCount }
-  const notifications = Array.isArray(notificationsData?.notifications) 
-    ? notificationsData.notifications 
-    : Array.isArray(notificationsData) 
-    ? notificationsData 
-    : [];
-  
+  const notifications = Array.isArray(notificationsData?.notifications)
+    ? notificationsData.notifications
+    : Array.isArray(notificationsData)
+      ? notificationsData
+      : [];
+
   const unreadCount = unreadData?.unreadCount ?? notificationsData?.unreadCount ?? 0;
-  
+
   // Debug: Log when dropdown opens
   useEffect(() => {
     if (isOpen) {
@@ -118,10 +118,25 @@ export default function NotificationDropdown({ className = "" }: NotificationDro
     return null;
   };
 
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
+  const [dropdownPosition, setDropdownPosition] = React.useState({ top: 0, right: 0 });
+
+  // Calculate dropdown position when opening
+  React.useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + 8, // 8px gap (mt-2)
+        right: window.innerWidth - rect.right,
+      });
+    }
+  }, [isOpen]);
+
   return (
     <div className={`relative ${className}`}>
       {/* Notification Bell Button */}
       <button
+        ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
       >
@@ -138,15 +153,22 @@ export default function NotificationDropdown({ className = "" }: NotificationDro
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 z-10"
+            className="fixed inset-0 z-[100]"
             onClick={() => setIsOpen(false)}
           />
-          
-          {/* Dropdown Content */}
-          <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-lg shadow-lg border z-[110] dark:bg-gray-800">
+
+          {/* Dropdown Content - Fixed positioning */}
+          <div
+            className="fixed w-80 max-w-[calc(100vw-2rem)] bg-white rounded-lg shadow-lg border z-[200] dark:bg-gray-800"
+            style={{
+              top: `${dropdownPosition.top}px`,
+              right: `${dropdownPosition.right}px`,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Header */}
             <div className="px-4 py-3 border-b flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                 Thông báo
                 {unreadCount > 0 && (
                   <span className="ml-2 text-sm text-red-600">
@@ -156,7 +178,10 @@ export default function NotificationDropdown({ className = "" }: NotificationDro
               </h3>
               {unreadCount > 0 && (
                 <button
-                  onClick={handleMarkAllAsRead}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleMarkAllAsRead();
+                  }}
                   className="text-sm text-blue-600 hover:text-blue-800"
                 >
                   Đánh dấu tất cả
@@ -185,17 +210,19 @@ export default function NotificationDropdown({ className = "" }: NotificationDro
               ) : (
                 <div className="py-2">
                   {notifications.map((notification) => (
-                    <div
+                    <Link
                       key={notification.id}
-                      className={`px-4 py-3 hover:bg-gray-50 cursor-pointer border-l-4 ${
-                        !notification.da_doc
-                          ? "border-l-blue-500 bg-blue-50"
-                          : "border-l-transparent"
-                      }`}
-                      onClick={() => {
+                      href={notification.lien_ket_den || getNotificationPageUrl()}
+                      className={`relative block px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-l-4 transition-colors ${!notification.da_doc
+                        ? "border-l-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                        : "border-l-transparent"
+                        }`}
+                      onClick={(e) => {
+                        e.stopPropagation();
                         if (!notification.da_doc) {
                           handleMarkAsRead([notification.id]);
                         }
+                        setIsOpen(false);
                       }}
                     >
                       <div className="flex items-start space-x-3">
@@ -207,23 +234,22 @@ export default function NotificationDropdown({ className = "" }: NotificationDro
                         {/* Content */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between">
-                            <p className={`text-sm font-medium ${
-                              !notification.da_doc ? "text-gray-900" : "text-gray-700"
-                            }`}>
+                            <p className={`text-sm font-medium ${!notification.da_doc ? "text-gray-900 dark:text-white" : "text-gray-700 dark:text-gray-300"
+                              }`}>
                               {notification.tieu_de}
                             </p>
                             {getPriorityBadge(notification.loai_thong_bao)}
                           </div>
-                          
-                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
                             {notification.noi_dung}
                           </p>
-                          
+
                           <div className="flex items-center justify-between mt-2">
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
                               {notification.nguoi_gui?.ho_va_ten || "Hệ thống"} • {notification.nguoi_gui?.vai_tro || "admin"}
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
                               {formatDistanceToNow(new Date(notification.created_at), {
                                 addSuffix: true,
                                 locale: vi,
@@ -237,7 +263,7 @@ export default function NotificationDropdown({ className = "" }: NotificationDro
                           )}
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
@@ -245,11 +271,14 @@ export default function NotificationDropdown({ className = "" }: NotificationDro
 
             {/* Footer */}
             {notifications.length > 0 && (
-              <div className="px-4 py-3 border-t bg-gray-50">
-                <Link 
-                  href={getNotificationPageUrl()} 
-                  className="text-sm text-blue-600 hover:text-blue-800 font-medium block text-center"
-                  onClick={() => setIsOpen(false)}
+              <div className="px-4 py-3 border-t bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
+                <Link
+                  href={getNotificationPageUrl()}
+                  className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium block text-center"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsOpen(false);
+                  }}
                 >
                   Xem tất cả thông báo
                 </Link>
