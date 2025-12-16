@@ -14,9 +14,11 @@ function getRandomElements<T>(array: T[], count: number): T[] {
 }
 
 function generateRandomCoordinates() {
-  // Vietnam coordinates bounds
-  const latMin = 8.5, latMax = 23.4;
-  const lngMin = 102.1, lngMax = 109.5;
+  // Đà Nẵng NỘI ĐỊA - 100% ĐẤT LIỀN (KHÔNG RA BIỂN)
+  const latMin = 15.95;   // Giới hạn Nam
+  const latMax = 16.15;   // Giới hạn Bắc
+  const lngMin = 108.05;  // Giới hạn Tây - vùng nội thành
+  const lngMax = 108.18;  // Giới hạn Đông - AN TOÀN TUYỆT ĐỐI (dừng xa biển)
   
   return {
     vi_do: parseFloat((Math.random() * (latMax - latMin) + latMin).toFixed(6)),
@@ -79,8 +81,8 @@ async function main() {
       mat_khau: hashedPassword,
       vai_tro: "admin",
       so_dien_thoai: "0901234567",
-      vi_do: 10.8231,
-      kinh_do: 106.6297,
+      vi_do: 16.0544,  // Đà Nẵng
+      kinh_do: 108.2022,
       // New notification settings
       nhan_thong_bao: true,
       thong_bao_email: true,
@@ -89,8 +91,8 @@ async function main() {
   });
   users.push(admin);
 
-  // Create 20 volunteers
-  for (let i = 1; i <= 20; i++) {
+  // Create 10 volunteers (giảm từ 20)
+  for (let i = 1; i <= 10; i++) {
     const coords = generateRandomCoordinates();
     const user = await prisma.nguoi_dungs.create({
       data: {
@@ -110,8 +112,8 @@ async function main() {
     users.push(user);
   }
 
-  // Create 50 citizens
-  for (let i = 1; i <= 50; i++) {
+  // Create 25 citizens (giảm từ 50)
+  for (let i = 1; i <= 25; i++) {
     const coords = generateRandomCoordinates();
     const user = await prisma.nguoi_dungs.create({
       data: {
@@ -134,52 +136,55 @@ async function main() {
   console.log(`✅ Created ${users.length} users`);
 
   // Create relief centers
-  console.log("🏢 Creating relief centers...");
+  console.log("🏢 Creating relief centers (Đà Nẵng region)...");
   const centerNames = [
-    'Trung tâm Cứu trợ TP. Hồ Chí Minh',
-    'Trung tâm Cứu trợ Hà Nội',
-    'Trung tâm Cứu trợ Đà Nẵng',
-    'Trung tâm Cứu trợ Hải Phòng',
-    'Trung tâm Cứu trợ Cần Thơ',
-    'Trung tâm Cứu trợ Quảng Ninh',
-    'Trung tâm Cứu trợ Thừa Thiên Huế',
-    'Trung tâm Cứu trợ Nghệ An',
-    'Trung tâm Cứu trợ Thanh Hóa',
+    'Trung tâm Cứu trợ Hải Châu',
+    'Trung tâm Cứu trợ Thanh Khê',
+    'Trung tâm Cứu trợ Sơn Trà',
+    'Trung tâm Cứu trợ Ngũ Hành Sơn',
+    'Trung tâm Cứu trợ Liên Chiểu',
+    'Trung tâm Cứu trợ Cẩm Lệ',
+    'Trung tâm Cứu trợ Hòa Vang',
     'Trung tâm Cứu trợ Quảng Nam',
-    'Trung tâm Cứu trợ Bình Định',
-    'Trung tâm Cứu trợ Khánh Hòa',
-    'Trung tâm Cứu trợ Lâm Đồng',
-    'Trung tâm Cứu trợ Bình Dương',
-    'Trung tâm Cứu trợ Đồng Nai'
+    'Trung tâm Cứu trợ Hội An',
+    'Trung tâm Cứu trợ Quảng Ngãi'
   ];
 
   const addresses = [
-    '123 Nguyễn Huệ, Quận 1, TP. HCM',
-    '456 Hoàn Kiếm, Hà Nội',
-    '789 Bạch Đằng, Đà Nẵng',
-    '321 Lê Lợi, Hải Phòng',
-    '654 Nguyễn Văn Cừ, Cần Thơ',
-    '987 Hạ Long, Quảng Ninh',
-    '147 Lê Lợi, Huế',
-    '258 Quang Trung, Nghệ An',
-    '369 Lê Lợi, Thanh Hóa',
-    '741 Trần Phú, Quảng Nam',
-    '852 Lê Lợi, Bình Định',
-    '963 Trần Phú, Khánh Hòa',
-    '159 Lê Lợi, Lâm Đồng',
-    '357 Nguyễn Văn Cừ, Bình Dương',
-    '468 Lê Lợi, Đồng Nai'
+    '123 Nguyễn Văn Linh, Hải Châu, Đà Nẵng',
+    '456 Điện Biên Phủ, Thanh Khê, Đà Nẵng',
+    '789 Ngô Quyền, Sơn Trà, Đà Nẵng',
+    '321 Nguyễn Tất Thành, Ngũ Hành Sơn, Đà Nẵng',
+    '654 Tôn Đức Thắng, Liên Chiểu, Đà Nẵng',
+    '987 Ông Ích Khiêm, Cẩm Lệ, Đà Nẵng',
+    '147 Hoàng Văn Thái, Hòa Vang, Đà Nẵng',
+    '258 Hùng Vương, Tam Kỳ, Quảng Nam',
+    '369 Trần Hưng Đạo, Hội An, Quảng Nam',
+    '741 Quang Trung, TP. Quảng Ngãi'
+  ];
+
+  // Tọa độ chính xác - NỘI ĐỊA ĐÀ NẴNG (100% đất liền)
+  const danangCoordinates = [
+    { vi_do: 16.0544, kinh_do: 108.1800 },  // Hải Châu - trung tâm nội đô
+    { vi_do: 16.0700, kinh_do: 108.1500 },  // Thanh Khê - nội đô Tây
+    { vi_do: 16.0650, kinh_do: 108.1700 },  // Sơn Trà - đất liền
+    { vi_do: 16.0100, kinh_do: 108.1600 },  // Ngũ Hành Sơn - đất liền
+    { vi_do: 16.0700, kinh_do: 108.1200 },  // Liên Chiểu - phía Tây
+    { vi_do: 16.0200, kinh_do: 108.1500 },  // Cẩm Lệ - nội đô
+    { vi_do: 15.9800, kinh_do: 108.1000 },  // Hòa Vang - phía Tây (núi)
+    { vi_do: 15.5700, kinh_do: 108.1200 },  // Tam Kỳ - nội địa
+    { vi_do: 15.8800, kinh_do: 108.1500 },  // Hội An - nội địa
+    { vi_do: 15.1200, kinh_do: 108.1800 }   // Quảng Ngãi - nội địa
   ];
 
   const centers = [];
   for (let i = 0; i < centerNames.length; i++) {
-    const coords = generateRandomCoordinates();
     const center = await prisma.trung_tam_cuu_tros.create({
       data: {
         ten_trung_tam: centerNames[i],
         dia_chi: addresses[i],
-        vi_do: coords.vi_do,
-        kinh_do: coords.kinh_do,
+        vi_do: danangCoordinates[i].vi_do,
+        kinh_do: danangCoordinates[i].kinh_do,
         nguoi_quan_ly: `${getRandomElement(firstNames)} ${getRandomElement(middleNames)} ${getRandomElement(lastNames)}`,
         so_lien_he: generatePhoneNumber(),
       },
@@ -210,7 +215,7 @@ async function main() {
   ];
 
   const resources = [];
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 100; i++) {  // Giảm từ 200 xuống 100
     const resourceType = getRandomElement(resourceTypes);
     const center = getRandomElement(centers);
     const quantity = Math.floor(Math.random() * (resourceType.maxQty - resourceType.minQty) + resourceType.minQty);
@@ -269,7 +274,7 @@ async function main() {
   const admins = users.filter(u => u.vai_tro === 'admin');
   const requests = [];
 
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < 25; i++) {  // Giảm từ 50 xuống 25
     const citizen = getRandomElement(citizens);
     const coords = generateRandomCoordinates();
     const approvalStatus = getRandomElement(approvalStatuses);
@@ -377,7 +382,7 @@ async function main() {
   const distributionStatuses = ['dang_chuan_bi', 'dang_van_chuyen', 'dang_giao', 'hoan_thanh', 'huy_bo'];
   const distributions = [];
 
-  for (let i = 0; i < 150; i++) {
+  for (let i = 0; i < 40; i++) {  // Giảm từ 75 xuống 40 (cân đối với 25 requests)
     const request = getRandomElement(requests);
     const resource = getRandomElement(resources);
     const volunteer = getRandomElement(volunteers);
@@ -416,7 +421,7 @@ async function main() {
     'phan_phoi_thanh_toan'
   ];
 
-  for (let i = 0; i < 300; i++) {
+  for (let i = 0; i < 80; i++) {  // Giảm từ 150 xuống 80
     const distribution = getRandomElement(distributions);
     const action = getRandomElement(actions);
     const now = new Date();
@@ -445,7 +450,7 @@ async function main() {
     });
   }
 
-  console.log(`✅ Created 300 blockchain logs`);
+  console.log(`✅ Created 80 blockchain logs`);
 
   // Create sample notifications
   console.log("📧 Creating sample notifications...");
@@ -454,12 +459,16 @@ async function main() {
 
   // Create notifications for approved/rejected requests
   const processedRequests = requests.filter(r => 
-    r.trang_thai_phe_duyet === 'da_phe_duyet' || r.trang_thai_phe_duyet === 'tu_choi'
+    (r.trang_thai_phe_duyet === 'da_phe_duyet' || r.trang_thai_phe_duyet === 'tu_choi') &&
+    r.id_nguoi_dung !== null  // Chỉ tạo notification cho request có user ID (không phải anonymous)
   );
 
   for (let i = 0; i < Math.min(processedRequests.length, 50); i++) {
     const request = processedRequests[i];
     const isApproved = request.trang_thai_phe_duyet === 'da_phe_duyet';
+    
+    // Skip nếu không có user ID (safety check)
+    if (!request.id_nguoi_dung) continue;
     
     // Notification to citizen about approval result
     const notification = await prisma.thong_baos.create({
@@ -533,13 +542,12 @@ async function main() {
   console.log(`✅ Created ${notifications.length} notifications`);
 
   // Create AI predictions
-  console.log("🤖 Creating AI predictions...");
+  console.log("🤖 Creating AI predictions (focused on Đà Nẵng region)...");
   const provinces = [
-    'Hà Nội', 'Hồ Chí Minh', 'Đà Nẵng', 'Hải Phòng', 'Cần Thơ', 'Quảng Ninh',
-    'Thừa Thiên Huế', 'Nghệ An', 'Thanh Hóa', 'Quảng Nam', 'Bình Định',
-    'Khánh Hòa', 'Lâm Đồng', 'Bình Dương', 'Đồng Nai', 'Tây Ninh',
-    'Long An', 'Tiền Giang', 'Bến Tre', 'Vĩnh Long', 'Trà Vinh',
-    'Sóc Trăng', 'Bạc Liêu', 'Cà Mau', 'Kiên Giang', 'An Giang'
+    'Đà Nẵng', 'Đà Nẵng', 'Đà Nẵng', 'Đà Nẵng', 'Đà Nẵng',  // Focus on Đà Nẵng
+    'Quảng Nam', 'Quảng Nam', 'Quảng Nam',  // Lân cận
+    'Quảng Ngãi', 'Quảng Ngãi',
+    'Thừa Thiên Huế', 'Thừa Thiên Huế'  // Lân cận
   ];
 
   const disasters = [
@@ -547,7 +555,7 @@ async function main() {
     'Bão tuyết', 'Lốc xoáy', 'Sóng thần', 'Núi lửa', 'Dịch bệnh', 'Ô nhiễm'
   ];
 
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 100; i++) {  // Giảm từ 200 xuống 100
     const province = getRandomElement(provinces);
     const disaster = getRandomElement(disasters);
     const predictionDate = new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000);
@@ -570,13 +578,13 @@ async function main() {
   // Summary statistics
   console.log("\n📊 Database seeded successfully!");
   console.log("\n📈 Summary:");
-  console.log(`  👥 Users: ${users.length} (1 admin, 20 volunteers, 50 citizens)`);
-  console.log(`  🏢 Relief Centers: ${centers.length}`);
+  console.log(`  👥 Users: ${users.length} (1 admin, 10 volunteers, 25 citizens)`);
+  console.log(`  🏢 Relief Centers: ${centers.length} (Đà Nẵng nội thành)`);
   console.log(`  📦 Resources: ${resources.length} (with inventory management)`);
   console.log(`  🚨 Relief Requests: ${requests.length} (with approval workflow)`);
   console.log(`  🚚 Distributions: ${distributions.length}`);
-  console.log(`  ⛓️ Blockchain Logs: 300`);
-  console.log(`  🤖 AI Predictions: 200`);
+  console.log(`  ⛓️ Blockchain Logs: 80`);
+  console.log(`  🤖 AI Predictions: 100`);
   console.log(`  📧 Notifications: ${notifications.length}`);
 
   // New workflow summary
@@ -596,8 +604,10 @@ async function main() {
 
   console.log("\n🔑 Test accounts:");
   console.log("  Admin: admin@relieflink.vn / password123");
-  console.log("  Volunteers: volunteer1@relieflink.vn to volunteer20@relieflink.vn / password123");
-  console.log("  Citizens: citizen1@relieflink.vn to citizen50@relieflink.vn / password123");
+  console.log("  Volunteers: volunteer1@relieflink.vn to volunteer10@relieflink.vn / password123");
+  console.log("  Citizens: citizen1@relieflink.vn to citizen25@relieflink.vn / password123");
+  console.log("\n📍 Vị trí: Đà Nẵng NỘI ĐỊA - 100% ĐẤT LIỀN");
+  console.log("  Vĩ độ: 15.95 - 16.15 | Kinh độ: 108.05 - 108.18 (AN TOÀN - KHÔNG RA BIỂN)");
   
   console.log("\n✨ New Features Ready:");
   console.log("  🔔 Real-time notifications system");
